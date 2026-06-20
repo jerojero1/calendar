@@ -1,0 +1,2104 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>鍵当番・スケジュール作成ツール</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Google Fonts (Noto Sans JP) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&amp;display=swap" rel="stylesheet">
+  
+  <!-- html2canvas (画像ダウンロード用) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+  <style>
+    body {
+      font-family: 'Noto Sans JP', sans-serif;
+      background-color: #f0f4f8;
+    }
+    .share-canvas {
+      width: 100%;
+      max-width: 640px;
+      margin: 0 auto;
+      background: #ffffff;
+    }
+    .calendar-cell-box {
+      position: relative;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .cell-date-num {
+      position: absolute;
+      top: 6px;
+      left: 8px;
+      font-size: 13px;
+      font-weight: 800;
+      line-height: 1;
+    }
+    .cell-badges-area {
+      display: block;
+      width: 100%;
+      padding-top: 26px;
+      padding-bottom: 12px;
+      box-sizing: border-box;
+    }
+    
+    /* 👑 予定バッジ専用CSS (通常サイズ) */
+    .badge-schedule-base {
+      display: block;
+      width: 100%;
+      text-align: center;
+      box-sizing: border-box;
+      border-radius: 6px;
+      padding-top: 1px;
+      padding-bottom: 9px;
+      padding-left: 4px;
+      padding-right: 4px;
+      font-size: 10px;
+      font-weight: 900;
+      line-height: 1.4;
+      margin-bottom: 5px;
+      word-break: break-all;
+      white-space: normal;
+    }
+
+    /* 👑 鍵当番専用バッジCSS (文字サイズ特大化・沈み込み調整済み) */
+    .badge-duty-base {
+      display: block;
+      width: 100%;
+      text-align: center;
+      box-sizing: border-box;
+      border-radius: 8px; /* 少し丸みを強めに */
+      
+      /* 文字が特大になった分の沈み込み相殺と枠高さ確保 */
+      padding-top: 4px;
+      padding-bottom: 10px;
+      padding-left: 2px;
+      padding-right: 2px;
+      
+      /* 👑 フォントサイズを13pxから16pxへ大幅に拡大！ */
+      font-size: 16px; 
+      font-weight: 900;
+      line-height: 1.25;
+      margin-bottom: 6px;
+      word-break: break-all;
+      white-space: normal;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05); /* 少し影をつけて目立たせる */
+    }
+
+    .badge-duty-orange {
+      border: 2.5px solid #d97706;
+      background-color: #fef3c7;
+      color: #78350f;
+    }
+    .badge-schedule-normal {
+      border: 2.5px solid #475569;
+      background-color: #f1f5f9;
+      color: #1e293b;
+    }
+    .badge-schedule-practice {
+      border: 2.5px solid #059669;
+      background-color: #ecfdf5;
+      color: #064e3b;
+    }
+    .badge-schedule-match {
+      border: 2.5px solid #e11d48;
+      background-color: #fff1f2;
+      color: #4c0519;
+    }
+    .badge-schedule-off {
+      border: 2.5px solid #d97706;
+      background-color: #fefaf0;
+      color: #b45309;
+      text-decoration: line-through;
+    }
+  </style>
+</head>
+<body class="text-slate-800 min-h-screen pb-12 relative">
+
+  <!-- 📥 【ドラッグ＆ドロップ案内オーバーレイ】 -->
+  <div id="drop-zone-overlay" class="fixed inset-0 bg-blue-900/90 backdrop-blur-md z-50 flex flex-col items-center justify-center gap-4 text-white border-8 border-dashed border-blue-400 m-4 rounded-3xl opacity-0 pointer-events-none transition-all duration-300 scale-95">
+    <div class="w-24 h-24 bg-white text-blue-950 rounded-full flex items-center justify-center shadow-2xl animate-bounce pointer-events-none">
+      <svg class="w-12 h-12 pointer-events-none" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z"></path>
+      </svg>
+    </div>
+    <h2 class="text-2xl font-black tracking-wider pointer-events-none">JSONデータをドロップして読込</h2>
+    <p class="text-sm text-blue-200 pointer-events-none">ここにJSONファイルをドロップすると、カレンダーとメンバーが上書き復元されます。</p>
+  </div>
+
+  <header class="bg-blue-800 text-white shadow-md py-4 px-6 sticky top-0 z-10">
+    <div class="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <!-- 野球ボール風のミニマムアイコン -->
+        <div class="w-10 h-10 bg-white rounded-full flex items-center justify-center border-2 border-red-500 shadow-inner">
+          <svg class="w-7 h-7 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <path d="M6 12A6 6 0 0 1 18 12" stroke-dasharray="2 2"></path>
+            <path d="M12 6A6 6 0 0 1 12 18" stroke-dasharray="2 2"></path>
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-lg font-black tracking-wider leading-none">鍵当番・スケジュールツール</h1>
+          <p id="app-mode-subtitle" class="text-xs text-amber-300 mt-1 font-bold animate-pulse">🔧 管理者モード（自由に編集して、配布用ファイルを書き出せます）</p>
+        </div>
+      </div>
+      
+      <!-- ステータス表示 -->
+      <div class="flex items-center gap-2 bg-blue-900/50 px-3 py-1.5 rounded-full text-xs font-bold border border-blue-700">
+        <span id="status-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+        <span id="status-text" class="text-blue-100">データ読込完了</span>
+      </div>
+
+      <!-- メイン操作・切り替え -->
+      <div class="flex items-center gap-2">
+        <button id="btn-prev-month" class="bg-blue-700 hover:bg-blue-600 px-3 py-1.5 rounded text-sm font-bold transition">◀ 前月</button>
+        <div class="bg-white text-slate-800 font-extrabold px-4 py-1.5 rounded shadow flex items-center gap-2">
+          <!-- JSで現在の年を基準に、過去2年〜未来7年の選択肢を自動生成する -->
+          <select id="select-year" class="bg-transparent border-none outline-none cursor-pointer text-sm"><option value="2024">2024年</option><option value="2025">2025年</option><option value="2026">2026年</option><option value="2027">2027年</option><option value="2028">2028年</option><option value="2029">2029年</option><option value="2030">2030年</option><option value="2031">2031年</option><option value="2032">2032年</option><option value="2033">2033年</option></select>
+          <select id="select-month" class="bg-transparent border-none outline-none cursor-pointer text-sm text-blue-700"><option value="1">1月</option><option value="2">2月</option><option value="3">3月</option><option value="4">4月</option><option value="5">5月</option><option value="6">6月</option><option value="7">7月</option><option value="8">8月</option><option value="9">9月</option><option value="10">10月</option><option value="11">11月</option><option value="12">12月</option></select>
+        </div>
+        <button id="btn-next-month" class="bg-blue-700 hover:bg-blue-600 px-3 py-1.5 rounded text-sm font-bold transition">翌月 ▶</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 mt-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+    
+    <!-- 左側：設定・操作パネル (4カラム) -->
+    <section class="lg:col-span-4 space-y-4">
+      
+      <!-- 👑 【管理者用】新しいデータ入りHTMLファイルの書き出し（世代交代用） -->
+      <div id="admin-panel" class="bg-gradient-to-br from-slate-800 to-slate-900 text-white rounded-2xl p-5 shadow-lg border border-slate-700 space-y-4">
+        <div class="flex justify-between items-center border-b border-slate-700 pb-2">
+          <h2 class="text-base font-bold text-amber-400 flex items-center gap-2">
+            👑 管理者メニュー
+          </h2>
+          <span class="bg-amber-400/20 text-amber-300 text-[10px] px-2 py-0.5 rounded-full font-bold">編集可能</span>
+        </div>
+        
+        <p class="text-xs text-slate-300 leading-relaxed">
+          予定の編集が完了したら、下のボタンを押してください。**「今入力した予定＆登録メンバー」が埋め込まれた新しいHTMLファイル**が今日の日付入りで作成されます。
+        </p>
+
+        <div class="space-y-2">
+          <!-- ⚡️ 火・木一括ローテーション自動入力ボタン -->
+          <button id="btn-auto-assign" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-2.5 px-4 rounded-xl shadow border border-blue-500 transition-all flex items-center justify-center gap-1.5 text-xs">
+            📅 火・木にローテ順で一括入力
+          </button>
+
+          <button id="btn-html-build" class="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-black py-3 px-4 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 text-sm">
+            📤 新しい配布用HTMLを保存
+          </button>
+        </div>
+        
+        <p class="text-[10px] text-slate-400 text-center">
+          ※配布用HTMLを新しく全員に配ることで、全員のパソコンに最新予定とメンバーリストが引き継がれます。
+        </p>
+
+        <div class="pt-2 border-t border-slate-700 flex gap-2">
+          <button id="btn-load-sample" class="flex-1 bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-bold py-2 px-2 rounded-lg transition">
+            手本予定を再現
+          </button>
+          <button id="btn-clear-all" class="flex-1 bg-rose-950 hover:bg-rose-900 text-rose-300 border border-rose-900 text-xs font-bold py-2 px-2 rounded-lg transition">
+            当月データ全消去
+          </button>
+        </div>
+      </div>
+
+      <!-- 💾 日常運用用：JSONデータの保存と読み込み -->
+      <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 space-y-3">
+        <h2 class="text-base font-bold text-slate-700 border-b pb-2 mb-2 flex items-center gap-2">
+          💾 日常データの保存・読込 (JSON)
+        </h2>
+        <p class="text-xs text-slate-500 leading-relaxed">
+          日常的なやり取りは、予定とメンバーを含むJSONを**画面へドラッグ＆ドロップ**するか、下から読み込めます。
+        </p>
+        
+        <div class="grid grid-cols-2 gap-2 pt-1">
+          <button id="btn-json-export" class="bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 text-xs font-bold py-2.5 px-3 rounded-lg transition flex items-center justify-center gap-1">
+            📤 予定をJSON保存
+          </button>
+          
+          <label class="bg-slate-50 hover:bg-slate-100 text-slate-800 border border-slate-200 text-xs font-bold py-2.5 px-3 rounded-lg transition flex items-center justify-center gap-1 cursor-pointer text-center">
+            📥 JSONを読込
+            <input type="file" id="input-json-import" accept=".json" class="hidden">
+          </label>
+        </div>
+      </div>
+
+      <!-- 表示設定・画像書き出し -->
+      <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
+        <h2 class="text-base font-bold text-slate-700 border-b pb-2 mb-4 flex items-center gap-2">
+          ⚙️ 表示設定と操作
+        </h2>
+        
+        <!-- 表示切り替え -->
+        <div class="mb-4">
+          <label class="block text-xs font-bold text-slate-500 mb-2">表示モード</label>
+          <div class="grid grid-cols-3 gap-1 bg-slate-100 p-1 rounded-xl">
+            <button id="tab-calendar" class="py-2 text-xs font-bold rounded-lg transition-all text-center bg-white text-blue-800 shadow-sm">
+              📅 カレンダー
+            </button>
+            <button id="tab-list" class="py-2 text-xs font-bold rounded-lg transition-all text-center text-slate-600 hover:text-slate-800">
+              📋 リスト
+            </button>
+            <button id="tab-members" class="py-2 text-xs font-bold rounded-lg transition-all text-center text-slate-600 hover:text-slate-800">
+              👥 メンバー設定
+            </button>
+          </div>
+        </div>
+
+        <!-- LINE共有用ボタン -->
+        <div class="space-y-2 pt-2">
+          <button id="btn-export" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 px-4 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 text-base">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+            </svg>
+            LINE配布用画像を書き出し
+          </button>
+          <p class="text-xs text-slate-500 text-center">カレンダー部分を正方形に近い高画質画像で保存します。</p>
+        </div>
+      </div>
+
+      <!-- クイックヘルプ＆モード切替 -->
+      <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 space-y-4">
+        <div>
+          <h3 class="text-sm font-bold text-slate-700 flex items-center gap-1.5 mb-2">
+            💡 使い方
+          </h3>
+          <ul id="usage-list" class="text-xs text-slate-600 space-y-1.5 list-disc pl-4 leading-relaxed">
+          <li>カレンダー内のバッジ（当番・予定）を<b>つかんで別の日へドラッグ＆ドロップ</b>で移動できます。<b>（CtrlキーやAltキーを押しながらで複製）</b></li>
+          <li>1日に<b>複数のスケジュール</b>（練習・試合など）を重ねて登録できます。</li>
+          <li>日常的なデータのやり取りは<b>「JSON保存・読込」</b>で行えます。</li>
+          <li>完全に最新データを埋め込んだ新ファイルを配るには、上の<b>「新しい配布用HTMLを保存」</b>を押してください。</li>
+        </ul>
+        </div>
+        
+        <!-- 🔐 隠しモード切り替えスイッチ -->
+        <div class="pt-3 border-t border-slate-100 flex justify-between items-center">
+          <span class="text-xs text-slate-400">管理者の方はこちら</span>
+          <button id="btn-toggle-admin" class="text-xs font-bold text-slate-500 hover:text-blue-800 bg-slate-100 hover:bg-blue-50 px-3 py-1.5 rounded-lg border border-slate-200 transition">🔒 閲覧モードへ戻る</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 右側：カレンダー表示・LINE画像化対象エリア (8カラム) -->
+    <section class="lg:col-span-8 flex flex-col items-center">
+      
+      <!-- LINE画像化に最適化したカード -->
+      <div id="share-area" class="share-canvas rounded-2xl shadow-lg border border-slate-300 overflow-hidden flex flex-col w-full">
+        
+        <!-- LINE配信用ヘッダー -->
+        <div class="bg-gradient-to-r from-blue-700 via-blue-800 to-indigo-900 text-white p-6 relative">
+          <div class="absolute right-4 top-4 opacity-10 pointer-events-none">
+            <svg class="w-24 h-24 text-white" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.53c-.26-.81-1-1.4-1.9-1.4h-1v-3c0-.55-.45-1-1-1h-6v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.4z"></path>
+            </svg>
+          </div>
+          
+          <div class="text-center">
+            <p class="text-xs tracking-widest font-black text-blue-200 uppercase mb-1">Haway Baseball Sports Club</p>
+            <h2 class="text-xl sm:text-2xl font-black tracking-wider drop-shadow">鍵当番 ＆ スケジュール</h2>
+            
+            <div class="mt-4 flex items-center justify-center gap-4 bg-white/10 backdrop-blur-sm rounded-xl py-2.5 px-6 border border-white/10 w-fit mx-auto">
+              <div>
+                <span id="label-year" class="text-xs block font-bold text-blue-200 leading-none">2026年</span>
+                <span id="label-month" class="text-3xl font-black tracking-tight leading-none">6<span class="text-lg font-bold ml-1">月</span></span>
+              </div>
+              <div class="w-px h-8 bg-white/20"></div>
+              <div class="text-left">
+                <span class="text-sm font-black block tracking-wider text-amber-300">🔑 鍵当番表</span>
+                <span class="text-[10px] text-white/80 block mt-0.5">活動スケジュール併記</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 表示コンテンツエリア -->
+        <div class="p-4 sm:p-5 flex-1 bg-white">
+          
+          <!-- モード1：カレンダー形式 -->
+          <div id="view-calendar" class="block animate-in fade-in duration-200">
+            <!-- 曜日ヘッダー -->
+            <div class="grid grid-cols-7 gap-1 text-center mb-1">
+              <div class="py-1 text-xs font-black text-rose-500 rounded bg-rose-50">日</div>
+              <div class="py-1 text-xs font-black text-slate-600 rounded bg-slate-50">月</div>
+              <div class="py-1 text-xs font-black text-slate-600 rounded bg-slate-50">火</div>
+              <div class="py-1 text-xs font-black text-slate-600 rounded bg-slate-50">水</div>
+              <div class="py-1 text-xs font-black text-slate-600 rounded bg-slate-50">木</div>
+              <div class="py-1 text-xs font-black text-slate-600 rounded bg-slate-50">金</div>
+              <div class="py-1 text-xs font-black text-sky-500 rounded bg-sky-50">土</div>
+            </div>
+            
+            <!-- カレンダーの日付グリッド -->
+            <div id="calendar-grid" class="grid grid-cols-7 gap-1"></div>
+          </div>
+
+          <!-- モード2：リスト形式 -->
+          <div id="view-list" class="hidden overflow-x-auto animate-in fade-in duration-200">
+            <table class="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr class="bg-slate-100 border-b border-slate-300 text-slate-700 font-bold">
+                  <th class="py-2.5 px-2 text-center w-12">日付</th>
+                  <th class="py-2.5 px-1 text-center w-10">曜日</th>
+                  <th class="py-2.5 px-2 text-left bg-amber-50/50 text-amber-900 w-28">🔑 鍵当番</th>
+                  <th class="py-2.5 px-2 text-left">⚾ 予定・試合</th>
+                </tr>
+              </thead>
+              <tbody id="list-tbody"></tbody>
+            </table>
+          </div>
+
+          <!-- 👤 モード3：当番メンバー設定タブ -->
+          <div id="view-members" class="hidden animate-in fade-in duration-200 space-y-6">
+            <div class="bg-slate-50 rounded-xl p-4 border border-slate-200">
+              <h3 class="text-sm font-bold text-slate-800 mb-2 flex items-center gap-1.5">
+                👥 当番メンバーの新規追加
+              </h3>
+              <p class="text-xs text-slate-500 mb-3 leading-relaxed">
+                ここに登録された名前が、カレンダー編集時の当番選択プルダウンに表示されます。**並び順がローテーション順になります。**
+              </p>
+              <div class="flex gap-2">
+                <input type="text" id="input-new-member" placeholder="例：中本家" class="flex-1 bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold">
+                <button id="btn-add-member" class="bg-blue-800 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-lg text-sm transition">
+                  追加する
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <h3 class="text-sm font-bold text-slate-800 mb-3 flex items-center gap-1.5">
+                📋 ローテーション順名簿（<span id="member-count">10</span>名）
+              </h3>
+              <p class="text-[10px] text-slate-400 mb-2">※右側の「上へ」「下へ」ボタンでローテーション順（割り当て順）を自在に変更できます。</p>
+              <div id="members-list-container" class="space-y-1.5 max-h-[400px] overflow-y-auto pr-1"></div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- LINE用フッターロゴ・共有促し -->
+        <div class="bg-slate-50 border-t border-slate-100 p-3 flex justify-between items-center text-slate-400 text-[10px] px-6">
+          <span>連絡用</span>
+          <span class="font-bold text-slate-500">作成日: <span id="span-today">2026/6/15</span></span>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- 編集用モーダル -->
+  <div id="modal-edit" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      
+      <!-- モーダルヘッダー -->
+      <div class="bg-blue-800 text-white p-4 flex justify-between items-center">
+        <h3 class="font-black flex items-center gap-2">
+          <span class="text-lg">✏️</span> 
+          <span id="modal-date-title">----年--月--日 (ー)</span> の編集
+        </h3>
+        <button id="modal-close" class="text-white/80 hover:text-white hover:bg-white/10 rounded p-1 transition">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+
+      <!-- モーダル本体 -->
+      <div class="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
+        <input type="hidden" id="edit-date-key">
+        
+        <!-- 鍵当番登録 -->
+        <div>
+          <label class="block text-xs font-bold text-slate-500 mb-1.5 flex items-center gap-1">
+            🔑 鍵当番を選択
+          </label>
+          <div class="space-y-2">
+            <select id="edit-duty-select" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-800">
+              <!-- 動的生成 -->
+            </select>
+            
+            <div id="manual-duty-container" class="hidden">
+              <label class="block text-[10px] text-slate-400 mb-1">手動で当番名を入力：</label>
+              <input type="text" id="edit-duty" placeholder="例：山口家（中村家）" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-800">
+            </div>
+          </div>
+        </div>
+
+        <!-- 👑 複数スケジュール登録 ＆ コピー機能の追加 -->
+        <div class="border-t border-slate-200 pt-3">
+          <div class="flex justify-between items-center mb-2">
+            <label class="block text-xs font-bold text-slate-500 flex items-center gap-1">
+              📅 練習・試合・行事 (複数可)
+            </label>
+            <!-- 👑 ペースト＆追加ボタン -->
+            <div class="flex gap-1.5">
+              <button id="btn-paste-modal-schedule" type="button" class="hidden text-[10px] bg-emerald-100 hover:bg-emerald-200 text-emerald-800 px-2.5 py-1.5 rounded-md font-bold transition flex items-center gap-1">
+                <span>📋 貼付</span>
+              </button>
+              <button id="btn-add-modal-schedule" type="button" class="text-[10px] bg-blue-100 hover:bg-blue-200 text-blue-800 px-2.5 py-1.5 rounded-md font-bold transition flex items-center gap-1">
+                <span>＋ 追加</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- 動的に追加される予定のリストコンテナ -->
+          <div id="modal-schedules-container" class="space-y-3">
+            <!-- JavaScriptで動的に追加されます -->
+          </div>
+        </div>
+
+      </div>
+
+      <!-- モーダルフッター -->
+      <div class="bg-slate-50 px-5 py-4 border-t border-slate-100 flex gap-2">
+        <button id="modal-delete" class="px-4 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 rounded-lg transition mr-auto">
+          全消去
+        </button>
+        <button id="modal-cancel" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-lg text-sm transition">
+          キャンセル
+        </button>
+        <button id="modal-save" class="px-5 py-2 bg-blue-800 hover:bg-blue-700 text-white font-bold rounded-lg text-sm transition shadow">
+          保存する
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- 画像出力プレビューモーダル -->
+  <div id="modal-preview" class="fixed inset-0 bg-slate-900/85 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden p-6 text-center space-y-4">
+      <h3 class="text-lg font-black text-slate-800 flex items-center justify-center gap-2">
+        <span class="text-xl">📸</span> 画像が生成されました！
+      </h3>
+      
+      <p class="text-xs text-slate-500 leading-relaxed">
+        スマートフォンの場合は、<b>下の画像を長押し</b>して保存してください。
+      </p>
+
+      <div class="border border-slate-200 rounded-xl overflow-hidden bg-slate-100 max-h-[60vh] overflow-y-auto">
+        <img id="preview-image" src="" alt="鍵当番表プレビュー" class="mx-auto w-full object-contain">
+      </div>
+
+      <div class="flex flex-col sm:flex-row gap-2 justify-center pt-2">
+        <a id="btn-download-direct" href="#" download="" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 px-6 rounded-lg text-sm transition flex items-center justify-center gap-2">
+          📥 直接ダウンロード
+        </a>
+        <button id="preview-close" class="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-2.5 px-6 rounded-lg text-sm transition">
+          閉じる
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ==========================================
+    // 💡 データの自動埋め込みエリア（ローカル保存が無い時の初期値）
+    // ==========================================
+    const EMBEDDED_DATA = {
+      "2026-06-02": {
+        "duty": "中本家",
+        "schedules": []
+      },
+      "2026-06-04": {
+        "duty": "若木家",
+        "schedules": []
+      },
+      "2026-06-06": {
+        "duty": "-",
+        "schedules": [
+          {
+            "text": "オフ",
+            "type": "off"
+          }
+        ]
+      },
+      "2026-06-07": {
+        "duty": "-",
+        "schedules": [
+          {
+            "text": "郡家西、醇風(交流戦)",
+            "type": "practice"
+          }
+        ]
+      },
+      "2026-06-09": {
+        "duty": "出西家",
+        "schedules": []
+      },
+      "2026-06-11": {
+        "duty": "山口家",
+        "schedules": []
+      },
+      "2026-06-13": {
+        "duty": "",
+        "schedules": [
+          {
+            "text": "練習(羽合球場)",
+            "type": "practice"
+          }
+        ]
+      },
+      "2026-06-14": {
+        "duty": "-",
+        "schedules": [
+          {
+            "text": "東郷泊(交流戦)",
+            "type": "practice"
+          }
+        ]
+      },
+      "2026-06-16": {
+        "duty": "大西家",
+        "schedules": []
+      },
+      "2026-06-18": {
+        "duty": "山口家（中村家）",
+        "schedules": []
+      },
+      "2026-06-20": {
+        "duty": "-",
+        "schedules": [
+          {
+            "text": "練習(羽合)8-12",
+            "type": "practice"
+          }
+        ]
+      },
+      "2026-06-23": {
+        "duty": "石村家",
+        "schedules": []
+      },
+      "2026-06-25": {
+        "duty": "小椋家",
+        "schedules": []
+      },
+      "2026-06-30": {
+        "duty": "原田家",
+        "schedules": []
+      },
+      "2026-03-31": {
+        "duty": "山口家",
+        "schedules": []
+      },
+      "2026-04-02": {
+        "duty": "石村家",
+        "schedules": []
+      },
+      "2026-04-07": {
+        "duty": "小椋家",
+        "schedules": []
+      },
+      "2026-04-09": {
+        "duty": "原田家",
+        "schedules": []
+      },
+      "2026-04-14": {
+        "duty": "澤田家",
+        "schedules": []
+      },
+      "2026-04-16": {
+        "duty": "山根家",
+        "schedules": []
+      },
+      "2026-04-21": {
+        "duty": "中本家",
+        "schedules": []
+      },
+      "2026-04-23": {
+        "duty": "若木家",
+        "schedules": []
+      },
+      "2026-04-28": {
+        "duty": "出西家",
+        "schedules": []
+      },
+      "2026-04-30": {
+        "duty": "渡邉家",
+        "schedules": []
+      },
+      "2026-05-07": {
+        "duty": "大西家",
+        "schedules": []
+      },
+      "2026-05-12": {
+        "duty": "山口家",
+        "schedules": []
+      },
+      "2026-05-14": {
+        "duty": "石村家",
+        "schedules": []
+      },
+      "2026-05-19": {
+        "duty": "小椋家",
+        "schedules": []
+      },
+      "2026-05-21": {
+        "duty": "原田家",
+        "schedules": []
+      },
+      "2026-05-26": {
+        "duty": "澤田家",
+        "schedules": []
+      },
+      "2026-05-28": {
+        "duty": "山根家",
+        "schedules": []
+      },
+      "2026-05-05": {
+        "duty": "-",
+        "schedules": [
+          {
+            "text": "オフ",
+            "type": "off"
+          }
+        ]
+      },
+      "2026-07-02": {
+        "duty": "澤田家",
+        "schedules": []
+      },
+      "2026-07-07": {
+        "duty": "山根家",
+        "schedules": []
+      },
+      "2026-07-09": {
+        "duty": "中本家",
+        "schedules": []
+      },
+      "2026-07-14": {
+        "duty": "若木家",
+        "schedules": []
+      },
+      "2026-07-16": {
+        "duty": "出西家",
+        "schedules": []
+      },
+      "2026-07-21": {
+        "duty": "大西家",
+        "schedules": []
+      },
+      "2026-07-23": {
+        "duty": "山口家",
+        "schedules": []
+      },
+      "2026-07-28": {
+        "duty": "石村家",
+        "schedules": []
+      },
+      "2026-07-30": {
+        "duty": "小椋家",
+        "schedules": []
+      },
+      "2026-07-04": {
+        "duty": "",
+        "schedules": [
+          {
+            "text": "練習or交流戦",
+            "type": "practice"
+          }
+        ]
+      },
+      "2026-07-11": {
+        "duty": "",
+        "schedules": [
+          {
+            "text": "練習or交流戦",
+            "type": "practice"
+          }
+        ]
+      },
+      "2026-07-18": {
+        "duty": "",
+        "schedules": [
+          {
+            "text": "練習or交流戦",
+            "type": "practice"
+          }
+        ]
+      },
+      "2026-07-25": {
+        "duty": "",
+        "schedules": [
+          {
+            "text": "練習or交流戦",
+            "type": "practice"
+          }
+        ]
+      },
+      "2026-07-12": {
+        "duty": "",
+        "schedules": [
+          {
+            "text": "練習or交流戦",
+            "type": "practice"
+          }
+        ]
+      },
+      "2026-07-05": {
+        "duty": "",
+        "schedules": [
+          {
+            "text": "練習or交流戦",
+            "type": "practice"
+          }
+        ]
+      },
+      "2026-07-19": {
+        "duty": "",
+        "schedules": [
+          {
+            "text": "練習or交流戦",
+            "type": "practice"
+          }
+        ]
+      },
+      "2026-07-26": {
+        "duty": "",
+        "schedules": [
+          {
+            "text": "練習or交流戦",
+            "type": "practice"
+          }
+        ]
+      },
+      "2026-06-21": {
+        "duty": "",
+        "schedules": [
+          {
+            "text": "ファイナルカップ(用瀬)美保",
+            "type": "match"
+          },
+          {
+            "text": "交流戦(TMC)美保",
+            "type": "normal"
+          }
+        ]
+      },
+      "2026-06-27": {
+        "duty": "",
+        "schedules": [
+          {
+            "text": "県学童軟式野球大会",
+            "type": "match"
+          }
+        ]
+      },
+      "2026-06-28": {
+        "duty": "",
+        "schedules": [
+          {
+            "text": "県学童軟式野球大会",
+            "type": "match"
+          }
+        ]
+      }
+    };
+
+    const EMBEDDED_MEMBERS = [
+      "中本家",
+      "若木家",
+      "出西家",
+      "大西家",
+      "山口家",
+      "石村家",
+      "小椋家",
+      "原田家",
+      "澤田家",
+      "山根家"
+    ];
+
+    // 初回起動時の管理者フラグ
+    const IS_ADMIN_DEFAULT = false;
+
+    // --- 状態管理 ---
+    let currentYear;
+    let currentMonth;
+    let currentView = 'calendar';
+    let isAdminMode = false;
+    let dutyData = {};
+    let memberList = [];
+    const jpnWeekdays = ['日', '月', '火', '水', '木', '金', '土'];
+    
+    // 👑 クリップボード用変数（コピー＆ペースト機能用）
+    let clipboardSchedule = null;
+
+    // --- DOM要素取得 ---
+    const selectYear = document.getElementById('select-year');
+    const selectMonth = document.getElementById('select-month');
+    const btnPrevMonth = document.getElementById('btn-prev-month');
+    const btnNextMonth = document.getElementById('btn-next-month');
+    const labelYear = document.getElementById('label-year');
+    const labelMonth = document.getElementById('label-month');
+    const spanToday = document.getElementById('span-today');
+    
+    const tabCalendar = document.getElementById('tab-calendar');
+    const tabList = document.getElementById('tab-list');
+    const tabMembers = document.getElementById('tab-members');
+    const viewCalendar = document.getElementById('view-calendar');
+    const viewList = document.getElementById('view-list');
+    const viewMembers = document.getElementById('view-members');
+    const calendarGrid = document.getElementById('calendar-grid');
+    const listTbody = document.getElementById('list-tbody');
+    
+    const btnExport = document.getElementById('btn-export');
+    const btnLoadSample = document.getElementById('btn-load-sample');
+    const btnClearAll = document.getElementById('btn-clear-all');
+    const btnJsonExport = document.getElementById('btn-json-export');
+    const inputJsonImport = document.getElementById('input-json-import');
+    
+    const appModeSubtitle = document.getElementById('app-mode-subtitle');
+    const adminPanel = document.getElementById('admin-panel');
+    const btnToggleAdmin = document.getElementById('btn-toggle-admin');
+    const btnHtmlBuild = document.getElementById('btn-html-build');
+    const btnAutoAssign = document.getElementById('btn-auto-assign');
+    const usageList = document.getElementById('usage-list');
+    
+    const inputNewMember = document.getElementById('input-new-member');
+    const btnAddMember = document.getElementById('btn-add-member');
+    const membersListContainer = document.getElementById('members-list-container');
+    const memberCountSpan = document.getElementById('member-count');
+    
+    // モーダル関連
+    const modalEdit = document.getElementById('modal-edit');
+    const modalClose = document.getElementById('modal-close');
+    const modalDateTitle = document.getElementById('modal-date-title');
+    const editDateKey = document.getElementById('edit-date-key');
+    const editDutySelect = document.getElementById('edit-duty-select');
+    const manualDutyContainer = document.getElementById('manual-duty-container');
+    const editDuty = document.getElementById('edit-duty');
+    const btnAddModalSchedule = document.getElementById('btn-add-modal-schedule');
+    const btnPasteModalSchedule = document.getElementById('btn-paste-modal-schedule');
+    const modalSchedulesContainer = document.getElementById('modal-schedules-container');
+    const modalSave = document.getElementById('modal-save');
+    const modalCancel = document.getElementById('modal-cancel');
+    const modalDelete = document.getElementById('modal-delete');
+    
+    const modalPreview = document.getElementById('modal-preview');
+    const previewImage = document.getElementById('preview-image');
+    const btnDownloadDirect = document.getElementById('btn-download-direct');
+    const previewClose = document.getElementById('preview-close');
+
+    // --- 初期化処理 ---
+    window.onload = function() {
+      const today = new Date();
+      currentYear = today.getFullYear();
+      currentMonth = today.getMonth() + 1;
+
+      setupDynamicSelectOptions();
+      
+      // 1. メンバーリストの読み込み
+      if (typeof EMBEDDED_MEMBERS !== 'undefined' && EMBEDDED_MEMBERS && EMBEDDED_MEMBERS.length > 0) {
+        memberList = [...EMBEDDED_MEMBERS];
+      } else {
+        const savedMembers = localStorage.getItem('haway_baseball_members');
+        if (savedMembers) {
+          try { memberList = JSON.parse(savedMembers); } catch (e) { memberList = []; }
+        } else {
+          memberList = ["中本家", "若木家", "出西家", "渡邉家", "大西家", "山口家", "石村家", "小椋家", "原田家"];
+        }
+      }
+
+      // 2. 予定データの読み込み
+      if (EMBEDDED_DATA && Object.keys(EMBEDDED_DATA).length > 0) {
+        dutyData = JSON.parse(JSON.stringify(EMBEDDED_DATA));
+      } else {
+        const savedData = localStorage.getItem('haway_baseball_duty');
+        if (savedData) {
+          try { dutyData = JSON.parse(savedData); } catch (e) { dutyData = {}; }
+        }
+      }
+
+      upgradeDataStructure();
+
+      const dataKeys = Object.keys(dutyData);
+      if (dataKeys.length > 0) {
+        const firstKey = dataKeys[0];
+        const embedYear = parseInt(firstKey.split('-')[0]);
+        const embedMonth = parseInt(firstKey.split('-')[1]);
+        if (embedYear >= currentYear && selectYear.querySelector(`option[value="${embedYear}"]`)) {
+          currentYear = embedYear;
+          currentMonth = embedMonth;
+          selectYear.value = String(currentYear);
+          selectMonth.value = String(currentMonth);
+        }
+      }
+
+      setAdminMode(IS_ADMIN_DEFAULT);
+      updateCalendarView();
+      updateMembersListView();
+      
+      spanToday.textContent = `${today.getFullYear()}/${today.getMonth() + 1}/${today.getDate()}`;
+      setupDragAndDrop();
+    };
+
+    function upgradeDataStructure() {
+      Object.keys(dutyData).forEach(key => {
+        const dayData = dutyData[key];
+        if (dayData && !dayData.schedules) {
+          dayData.schedules = [];
+          if (dayData.schedule) {
+            dayData.schedules.push({
+              text: dayData.schedule,
+              type: dayData.type || 'normal'
+            });
+          }
+          delete dayData.schedule;
+          delete dayData.type;
+        }
+      });
+    }
+
+    function setupDynamicSelectOptions() {
+      const today = new Date();
+      const thisYear = today.getFullYear();
+
+      selectYear.innerHTML = '';
+      for (let y = thisYear - 2; y <= thisYear + 7; y++) {
+        const option = document.createElement('option');
+        option.setAttribute('value', String(y));
+        option.textContent = `${y}年`;
+        if (y === currentYear) option.selected = true;
+        selectYear.appendChild(option);
+      }
+
+      selectMonth.innerHTML = '';
+      for (let m = 1; m <= 12; m++) {
+        const option = document.createElement('option');
+        option.setAttribute('value', String(m));
+        option.textContent = `${m}月`;
+        if (m === currentMonth) option.selected = true;
+        selectMonth.appendChild(option);
+      }
+    }
+
+    function hasDragType(e, type) {
+      if (!e.dataTransfer || !e.dataTransfer.types) return false;
+      try {
+        const types = Array.from(e.dataTransfer.types);
+        return types.includes(type);
+      } catch (err) {
+        for (let i = 0; i < e.dataTransfer.types.length; i++) {
+          if (e.dataTransfer.types[i] === type) return true;
+        }
+        return false;
+      }
+    }
+
+    function setupDragAndDrop() {
+      const overlay = document.getElementById('drop-zone-overlay');
+
+      window.addEventListener('dragenter', function(e) {
+        if (hasDragType(e, 'Files')) {
+          e.preventDefault();
+          overlay.classList.remove('opacity-0', 'pointer-events-none', 'scale-95');
+          overlay.classList.add('opacity-100', 'scale-100');
+        }
+      });
+
+      window.addEventListener('dragover', function(e) {
+        if (hasDragType(e, 'Files')) {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'copy';
+        }
+      });
+
+      overlay.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        if (e.clientX <= 0 || e.clientY <= 0 || e.clientX >= window.innerWidth || e.clientY >= window.innerHeight) {
+          overlay.classList.remove('opacity-100', 'scale-100');
+          overlay.classList.add('opacity-0', 'pointer-events-none', 'scale-95');
+        }
+      });
+
+      window.addEventListener('drop', function(e) {
+        if (e.dataTransfer && e.dataTransfer.files.length > 0) {
+          e.preventDefault();
+          overlay.classList.remove('opacity-100', 'scale-100');
+          overlay.classList.add('opacity-0', 'pointer-events-none', 'scale-95');
+
+          const file = e.dataTransfer.files[0];
+          if (!file) return;
+
+          if (!file.name.endsWith('.json')) {
+            alert('JSON形式のバックアップファイルを選択してください。');
+            return;
+          }
+
+          const reader = new FileReader();
+          reader.onload = function(evt) {
+            try {
+              const importedPackage = JSON.parse(evt.target.result);
+              if (confirm(`ドラッグされたファイル 「${file.name}」 からスケジュールとメンバーデータを読み込んで上書きします。よろしいですか？`)) {
+                if (importedPackage.schedules) {
+                  dutyData = importedPackage.schedules;
+                  if (importedPackage.members && Array.isArray(importedPackage.members)) {
+                    memberList = importedPackage.members;
+                  }
+                } else {
+                  dutyData = importedPackage;
+                }
+                
+                upgradeDataStructure();
+                saveAllToLocalStorage();
+                updateCalendarView();
+                updateMembersListView();
+                alert('ファイルのドラッグ読込が完了しました！');
+              }
+            } catch (err) {
+              alert('データの解析に失敗しました。ファイルが壊れている可能性があります。');
+            }
+          };
+          reader.readAsText(file);
+        }
+      });
+    }
+
+    function formatDateKey(year, month, day) {
+      const mm = String(month).padStart(2, '0');
+      const dd = String(day).padStart(2, '0');
+      return `${year}-${mm}-${dd}`;
+    }
+
+    function setAdminMode(active) {
+      isAdminMode = active;
+      if (isAdminMode) {
+        appModeSubtitle.textContent = "🔧 管理者モード（自由に編集して、配布用ファイルを書き出せます）";
+        appModeSubtitle.className = "text-xs text-amber-300 mt-1 font-bold animate-pulse";
+        adminPanel.classList.remove('hidden');
+        btnToggleAdmin.textContent = "🔒 閲覧モードへ戻る";
+        
+        usageList.innerHTML = `
+          <li>カレンダー内のバッジ（当番・予定）を<b>つかんで別の日へドラッグ＆ドロップ</b>で移動できます。<b>（CtrlキーやAltキーを押しながらで複製）</b></li>
+          <li>1日に<b>複数のスケジュール</b>（練習・試合など）を重ねて登録できます。</li>
+          <li>日常的なデータのやり取りは<b>「JSON保存・読込」</b>で行えます。</li>
+          <li>完全に最新データを埋め込んだ新ファイルを配るには、上の<b>「新しい配布用HTMLを保存」</b>を押してください。</li>
+        `;
+      } else {
+        appModeSubtitle.textContent = "👀 閲覧モード（カレンダーを見る・画像化する専用です）";
+        appModeSubtitle.className = "text-xs text-emerald-300 mt-1 font-bold";
+        adminPanel.classList.add('hidden');
+        btnToggleAdmin.textContent = "🔧 管理者モードへ";
+        
+        usageList.innerHTML = `
+          <li>カレンダーには、あらかじめ管理者が入力した最新のスケジュールが埋め込まれています。</li>
+          <li>LINE配信用画像を作る場合は<b>「画像を書き出し」</b>を押してください。</li>
+        `;
+      }
+      updateCalendarView();
+      updateMembersListView();
+    }
+
+    function saveAllToLocalStorage() {
+      localStorage.setItem('haway_baseball_duty', JSON.stringify(dutyData));
+      localStorage.setItem('haway_baseball_members', JSON.stringify(memberList));
+    }
+
+    // --- メンバー一覧UIの描画リビルド ---
+    function updateMembersListView() {
+      membersListContainer.innerHTML = '';
+      memberCountSpan.textContent = memberList.length;
+
+      memberList.forEach((member, index) => {
+        const div = document.createElement('div');
+        div.className = "bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-xl px-4 py-2.5 flex justify-between items-center transition shadow-sm";
+        
+        const leftBox = document.createElement('div');
+        leftBox.className = "flex items-center gap-2 truncate";
+        
+        const badge = document.createElement('span');
+        badge.className = "bg-blue-800 text-white text-[10px] w-5 h-5 rounded-full flex items-center justify-center font-bold font-mono shrink-0";
+        badge.textContent = index + 1;
+        leftBox.appendChild(badge);
+
+        const span = document.createElement('span');
+        span.className = "font-bold text-slate-700 text-xs sm:text-sm truncate";
+        span.textContent = member;
+        leftBox.appendChild(span);
+        
+        div.appendChild(leftBox);
+
+        const rightBox = document.createElement('div');
+        rightBox.className = "flex items-center gap-1 shrink-0";
+
+        if (isAdminMode) {
+          const upBtn = document.createElement('button');
+          upBtn.className = "text-slate-500 hover:text-blue-800 hover:bg-slate-200 rounded p-1 transition";
+          upBtn.innerHTML = `
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5"/>
+            </svg>
+          `;
+          upBtn.disabled = index === 0;
+          if (index === 0) upBtn.className += " opacity-20 cursor-not-allowed";
+          upBtn.onclick = () => moveMemberOrder(index, -1);
+          rightBox.appendChild(upBtn);
+
+          const downBtn = document.createElement('button');
+          downBtn.className = "text-slate-500 hover:text-blue-800 hover:bg-slate-200 rounded p-1 transition";
+          downBtn.innerHTML = `
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/>
+            </svg>
+          `;
+          downBtn.disabled = index === memberList.length - 1;
+          if (index === memberList.length - 1) downBtn.className += " opacity-20 cursor-not-allowed";
+          downBtn.onclick = () => moveMemberOrder(index, 1);
+          rightBox.appendChild(downBtn);
+
+          const deleteBtn = document.createElement('button');
+          deleteBtn.className = "text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded p-1 transition ml-1";
+          deleteBtn.innerHTML = `
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+            </svg>
+          `;
+          deleteBtn.onclick = () => removeMember(index);
+          rightBox.appendChild(deleteBtn);
+        }
+        div.appendChild(rightBox);
+        membersListContainer.appendChild(div);
+      });
+    }
+
+    function moveMemberOrder(index, direction) {
+      const targetIndex = index + direction;
+      if (targetIndex < 0 || targetIndex >= memberList.length) return;
+      
+      const temp = memberList[index];
+      memberList[index] = memberList[targetIndex];
+      memberList[targetIndex] = temp;
+      
+      saveAllToLocalStorage();
+      updateMembersListView();
+    }
+
+    function getLastDutyOfPreviousMonth(year, month) {
+      let prevYear = year;
+      let prevMonth = month - 1;
+      if (prevMonth < 1) {
+        prevMonth = 12;
+        prevYear = year - 1;
+      }
+      const lastDayOfPrevMonth = new Date(prevYear, prevMonth, 0).getDate();
+
+      for (let day = lastDayOfPrevMonth; day >= 1; day--) {
+        const dayOfWeek = new Date(prevYear, prevMonth - 1, day).getDay();
+        if (dayOfWeek === 2 || dayOfWeek === 4) {
+          const dateStr = formatDateKey(prevYear, prevMonth, day);
+          const dayData = dutyData[dateStr];
+          if (dayData && dayData.duty && dayData.duty !== '-' && memberList.includes(dayData.duty)) {
+            return dayData.duty;
+          }
+        }
+      }
+      return null;
+    }
+
+    btnAutoAssign.onclick = function() {
+      if (memberList.length === 0) {
+        alert('先に「👥 メンバー設定」タブで当番メンバーを登録してください。');
+        return;
+      }
+
+      const firstDay = new Date(currentYear, currentMonth - 1, 1);
+      const lastDay = new Date(currentYear, currentMonth, 0);
+      const numDays = lastDay.getDate();
+      let hasExistingDuty = false;
+
+      for (let day = 1; day <= numDays; day++) {
+        const dayOfWeek = new Date(currentYear, currentMonth - 1, day).getDay();
+        if (dayOfWeek === 2 || dayOfWeek === 4) {
+          const dateStr = formatDateKey(currentYear, currentMonth, day);
+          if (dutyData[dateStr] && dutyData[dateStr].duty && dutyData[dateStr].duty !== '-') {
+            hasExistingDuty = true;
+            break;
+          }
+        }
+      }
+
+      if (hasExistingDuty) {
+        if (!confirm('すでに今月の火曜日または木曜日に鍵当番が設定されている日があります。ローテ順で一括上書きしますか？')) {
+          return;
+        }
+      }
+
+      const lastDuty = getLastDutyOfPreviousMonth(currentYear, currentMonth);
+      
+      let nextIndex = 0;
+      if (lastDuty) {
+        const lastIndex = memberList.indexOf(lastDuty);
+        if (lastIndex !== -1) {
+          nextIndex = (lastIndex + 1) % memberList.length;
+        }
+      }
+
+      let count = 0;
+      for (let day = 1; day <= numDays; day++) {
+        const dayOfWeek = new Date(currentYear, currentMonth - 1, day).getDay();
+        if (dayOfWeek === 2 || dayOfWeek === 4) {
+          const dateStr = formatDateKey(currentYear, currentMonth, day);
+          const assignedMember = memberList[nextIndex];
+          
+          if (!dutyData[dateStr]) {
+            dutyData[dateStr] = { duty: '', schedules: [] };
+          }
+          
+          dutyData[dateStr].duty = assignedMember;
+          nextIndex = (nextIndex + 1) % memberList.length;
+          count++;
+        }
+      }
+
+      saveAllToLocalStorage();
+      updateCalendarView();
+      
+      let startMsg = lastDuty ? `前月の最終当番「${lastDuty}」の次の人` : `名簿の1番目の人`;
+      alert(`🎉 割り当てが完了しました！\n今月の火曜・木曜（計${count}日分）に対して、${startMsg}からローテーション順に自動配置しました。`);
+    };
+
+    function cleanUpEmptyDate(dateKey) {
+      const data = dutyData[dateKey];
+      if (data) {
+        const hasDuty = data.duty && data.duty !== '' && data.duty !== '-';
+        const hasSchedules = data.schedules && data.schedules.length > 0;
+        if (!hasDuty && !hasSchedules) {
+          delete dutyData[dateKey];
+        }
+      }
+    }
+
+    // --- カレンダー・リスト描写 ---
+    function updateCalendarView() {
+      labelYear.textContent = `${currentYear}年`;
+      labelMonth.innerHTML = `${currentMonth}<span class="text-lg font-bold ml-1">月</span>`;
+
+      const firstDay = new Date(currentYear, currentMonth - 1, 1);
+      const lastDay = new Date(currentYear, currentMonth, 0);
+      const numDays = lastDay.getDate();
+      const startDayOfWeek = firstDay.getDay();
+
+      calendarGrid.innerHTML = '';
+
+      for (let i = 0; i < startDayOfWeek; i++) {
+        const emptyCell = document.createElement('div');
+        emptyCell.className = "bg-slate-50 border border-slate-100 rounded-lg min-h-[100px] sm:min-h-[130px] opacity-40";
+        calendarGrid.appendChild(emptyCell);
+      }
+
+      for (let day = 1; day <= numDays; day++) {
+        const dateStr = formatDateKey(currentYear, currentMonth, day);
+        const dayData = dutyData[dateStr] || { duty: '', schedules: [] };
+        const currentDayDate = new Date(currentYear, currentMonth - 1, day);
+        const dayOfWeek = currentDayDate.getDay();
+
+        // 👑 カレンダーマスの高さを広めに確保
+        const cell = document.createElement('div');
+        cell.className = `p-1 border border-slate-200 rounded-lg min-h-[100px] sm:min-h-[130px] calendar-cell-box relative transition-all ${
+          dayOfWeek === 0 ? 'bg-rose-50/20' : dayOfWeek === 6 ? 'bg-sky-50/20' : 'bg-white'
+        }`;
+        
+        if (isAdminMode) {
+          cell.className += " cursor-pointer hover:bg-slate-50 hover:shadow-sm";
+          
+          cell.onclick = function(e) {
+            openEditModal(dateStr, day, dayOfWeek);
+          };
+
+          cell.addEventListener('dragover', function(e) {
+            if (hasDragType(e, 'text/plain')) {
+              e.preventDefault();
+              const isCopy = e.ctrlKey || e.metaKey || e.altKey;
+              e.dataTransfer.dropEffect = isCopy ? 'copy' : 'move';
+            }
+          });
+
+          cell.addEventListener('dragenter', function(e) {
+            if (hasDragType(e, 'text/plain')) {
+              e.preventDefault();
+              cell.classList.remove('border-slate-200');
+              cell.classList.add('border-dashed', 'border-blue-500', 'bg-blue-50/60', 'ring-2', 'ring-blue-400', 'z-10');
+            }
+          });
+
+          cell.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            cell.classList.add('border-slate-200');
+            cell.classList.remove('border-dashed', 'border-blue-500', 'bg-blue-50/60', 'ring-2', 'ring-blue-400', 'z-10');
+          });
+
+          cell.addEventListener('drop', function(e) {
+            if (hasDragType(e, 'text/plain')) {
+              e.preventDefault();
+              e.stopPropagation();
+
+              cell.classList.add('border-slate-200');
+              cell.classList.remove('border-dashed', 'border-blue-500', 'bg-blue-50/60', 'ring-2', 'ring-blue-400', 'z-10');
+
+              try {
+                const dragDataStr = e.dataTransfer.getData('text/plain');
+                if (!dragDataStr) return;
+                const dragData = JSON.parse(dragDataStr);
+                const sourceDate = dragData.sourceDate;
+                const targetDate = dateStr;
+
+                const isCopy = e.ctrlKey || e.metaKey || e.altKey;
+
+                if (!isCopy && sourceDate === targetDate) return;
+
+                const sourceDayData = dutyData[sourceDate];
+                if (!sourceDayData) return;
+
+                if (!dutyData[targetDate]) {
+                  dutyData[targetDate] = { duty: '', schedules: [] };
+                }
+                const targetDayData = dutyData[targetDate];
+
+                if (dragData.dragType === 'duty') {
+                  const movingDuty = sourceDayData.duty;
+                  if (!isCopy) sourceDayData.duty = '';
+                  targetDayData.duty = movingDuty;
+                } 
+                else if (dragData.dragType === 'schedule') {
+                  const idx = dragData.scheduleIndex;
+                  if (!sourceDayData.schedules || !sourceDayData.schedules[idx]) return;
+
+                  let movingSchedule;
+                  if (isCopy) {
+                    movingSchedule = { ...sourceDayData.schedules[idx] };
+                  } else {
+                    [movingSchedule] = sourceDayData.schedules.splice(idx, 1);
+                  }
+
+                  if (!targetDayData.schedules) {
+                    targetDayData.schedules = [];
+                  }
+                  targetDayData.schedules.push(movingSchedule);
+                }
+
+                if (!isCopy) cleanUpEmptyDate(sourceDate);
+                cleanUpEmptyDate(targetDate);
+
+                saveAllToLocalStorage();
+                updateCalendarView();
+
+              } catch (err) {
+                console.error(err);
+              }
+            }
+          });
+        }
+
+        let dateColorClass = "text-slate-700 font-bold";
+        if (dayOfWeek === 0) dateColorClass = "text-rose-600 font-black";
+        if (dayOfWeek === 6) dateColorClass = "text-sky-600 font-black";
+        
+        const dateHeader = document.createElement('div');
+        dateHeader.className = `cell-date-num ${dateColorClass}`;
+        dateHeader.textContent = day;
+        cell.appendChild(dateHeader);
+
+        const contentContainer = document.createElement('div');
+        contentContainer.className = "cell-badges-area";
+
+        if (dayData.duty && dayData.duty !== '-') {
+          const dutyBadge = document.createElement('div');
+          // 👑 鍵当番専用の「大文字サイズ」クラスを適用
+          dutyBadge.className = "badge-duty-base badge-duty-orange transition-opacity duration-150";
+          dutyBadge.innerHTML = `🔑 ${dayData.duty}`;
+          
+          if (isAdminMode) {
+            dutyBadge.setAttribute('draggable', 'true');
+            dutyBadge.className += " cursor-grab active:cursor-grabbing hover:brightness-95";
+            
+            dutyBadge.addEventListener('dragstart', function(e) {
+              e.stopPropagation();
+              e.dataTransfer.setData('text/plain', JSON.stringify({
+                sourceDate: dateStr,
+                dragType: 'duty'
+              }));
+              e.dataTransfer.effectAllowed = 'copyMove';
+              setTimeout(() => { dutyBadge.classList.add('opacity-30'); }, 0);
+            });
+
+            dutyBadge.addEventListener('dragend', function() {
+              dutyBadge.classList.remove('opacity-30');
+            });
+
+            dutyBadge.addEventListener('click', function(e) {
+              e.stopPropagation();
+              openEditModal(dateStr, day, dayOfWeek);
+            });
+          }
+
+          contentContainer.appendChild(dutyBadge);
+        }
+
+        if (dayData.schedules && dayData.schedules.length > 0) {
+          dayData.schedules.forEach((sched, idx) => {
+            if (!sched.text) return;
+            let badgeTypeClass = "badge-schedule-normal";
+            if (sched.type === 'practice') badgeTypeClass = "badge-schedule-practice";
+            if (sched.type === 'match') badgeTypeClass = "badge-schedule-match";
+            if (sched.type === 'off') badgeTypeClass = "badge-schedule-off";
+
+            const schedBadge = document.createElement('div');
+            // 👑 予定は通常サイズのクラスを適用
+            schedBadge.className = `badge-schedule-base ${badgeTypeClass} transition-opacity duration-150`;
+            schedBadge.textContent = sched.text;
+
+            if (isAdminMode) {
+              schedBadge.setAttribute('draggable', 'true');
+              schedBadge.className += " cursor-grab active:cursor-grabbing hover:brightness-95";
+              
+              schedBadge.addEventListener('dragstart', function(e) {
+                e.stopPropagation();
+                e.dataTransfer.setData('text/plain', JSON.stringify({
+                  sourceDate: dateStr,
+                  dragType: 'schedule',
+                  scheduleIndex: idx
+                }));
+                e.dataTransfer.effectAllowed = 'copyMove';
+                setTimeout(() => { schedBadge.classList.add('opacity-30'); }, 0);
+              });
+
+              schedBadge.addEventListener('dragend', function() {
+                schedBadge.classList.remove('opacity-30');
+              });
+
+              schedBadge.addEventListener('click', function(e) {
+                e.stopPropagation();
+                openEditModal(dateStr, day, dayOfWeek);
+              });
+            }
+
+            contentContainer.appendChild(schedBadge);
+          });
+        }
+
+        cell.appendChild(contentContainer);
+        calendarGrid.appendChild(cell);
+      }
+
+      listTbody.innerHTML = '';
+      
+      for (let day = 1; day <= numDays; day++) {
+        const dateStr = formatDateKey(currentYear, currentMonth, day);
+        const dayData = dutyData[dateStr] || { duty: '', schedules: [] };
+        const currentDayDate = new Date(currentYear, currentMonth - 1, day);
+        const dayOfWeek = currentDayDate.getDay();
+
+        const tr = document.createElement('tr');
+        if (isAdminMode) {
+          tr.className = `border-b border-slate-100 cursor-pointer hover:bg-slate-50 transition-all ${
+            dayOfWeek === 0 ? 'bg-rose-50/10' : dayOfWeek === 6 ? 'bg-sky-50/10' : ''
+          }`;
+          tr.onclick = () => openEditModal(dateStr, day, dayOfWeek);
+        } else {
+          tr.className = `border-b border-slate-100 ${
+            dayOfWeek === 0 ? 'bg-rose-50/10' : dayOfWeek === 6 ? 'bg-sky-50/10' : ''
+          }`;
+        }
+
+        const tdDay = document.createElement('td');
+        tdDay.className = "py-2 px-2 text-center font-bold text-slate-600 border-r border-slate-100";
+        tdDay.textContent = `${currentMonth}/${day}`;
+        tr.appendChild(tdDay);
+
+        const tdWeek = document.createElement('td');
+        let weekColor = "text-slate-500 font-medium";
+        if (dayOfWeek === 0) weekColor = "text-rose-600 font-bold";
+        if (dayOfWeek === 6) weekColor = "text-sky-600 font-bold";
+        tdWeek.className = `py-2 px-1 text-center border-r border-slate-100 ${weekColor}`;
+        tdWeek.textContent = jpnWeekdays[dayOfWeek];
+        tr.appendChild(tdWeek);
+
+        const tdDuty = document.createElement('td');
+        tdDuty.className = "py-2 px-3 text-left font-bold text-amber-950 border-r border-slate-100";
+        if (dayData.duty) {
+          tdDuty.innerHTML = dayData.duty === '-' ? '<span class="text-slate-300">-</span>' : `🔑 ${dayData.duty}`;
+        } else {
+          tdDuty.innerHTML = '<span class="text-slate-300">未設定</span>';
+        }
+        tr.appendChild(tdDuty);
+
+        const tdSched = document.createElement('td');
+        tdSched.className = "py-2 px-3 text-left space-y-1.5";
+        if (dayData.schedules && dayData.schedules.length > 0) {
+          dayData.schedules.forEach(sched => {
+            let schedStyle = "text-slate-700 font-medium block";
+            if (sched.type === 'practice') schedStyle = "text-emerald-700 font-bold block";
+            if (sched.type === 'match') schedStyle = "text-rose-600 font-black block";
+            if (sched.type === 'off') schedStyle = "text-amber-600 line-through block";
+            
+            const schedDiv = document.createElement('div');
+            schedDiv.className = schedStyle;
+            schedDiv.textContent = sched.text;
+            tdSched.appendChild(schedDiv);
+          });
+        } else {
+          tdSched.innerHTML = '<span class="text-slate-200">-</span>';
+        }
+        tr.appendChild(tdSched);
+
+        listTbody.appendChild(tr);
+      }
+    }
+
+    // 👑 予定のコピー機能：行のデータをクリップボード（内部変数）に記憶する
+    function copyScheduleFromRow(rowId) {
+      const row = document.getElementById(rowId);
+      if (!row) return;
+      const textInput = row.querySelector('.modal-sched-text');
+      const selectedRadio = row.querySelector(`input[name="type-${rowId}"]:checked`);
+      
+      if (textInput && selectedRadio) {
+        clipboardSchedule = {
+          text: textInput.value.trim(),
+          type: selectedRadio.value
+        };
+        
+        // 貼り付けボタンを表示
+        const pasteBtn = document.getElementById('btn-paste-modal-schedule');
+        pasteBtn.classList.remove('hidden');
+        
+        // コピー完了のエフェクト
+        const copyBtn = row.querySelector('.btn-copy');
+        const originalHtml = copyBtn.innerHTML;
+        copyBtn.innerHTML = '✅';
+        copyBtn.classList.add('text-emerald-500');
+        setTimeout(() => {
+          copyBtn.innerHTML = originalHtml;
+          copyBtn.classList.remove('text-emerald-500');
+        }, 1000);
+      }
+    }
+
+    // --- モーダル内の予定行を生成する関数（コピペボタン追加版） ---
+    function createModalScheduleRow(text = '', type = 'normal') {
+      const rowId = 'sched-row-' + Math.random().toString(36).substr(2, 9);
+      const div = document.createElement('div');
+      div.id = rowId;
+      div.className = "p-2.5 sm:p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2 relative animate-in fade-in duration-150";
+
+      div.innerHTML = `
+        <div class="flex gap-1.5 sm:gap-2">
+          <input type="text" class="modal-sched-text flex-1 bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 font-semibold text-slate-800" placeholder="予定・行事内容を入力..." value="${text.replace(/"/g, '&quot;')}">
+          <button type="button" class="btn-copy text-slate-400 hover:text-blue-600 hover:bg-blue-50 p-1.5 rounded-lg transition shrink-0" onclick="copyScheduleFromRow('${rowId}')" title="この予定をコピー">
+            <svg class="w-4 h-4 pointer-events-none" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
+            </svg>
+          </button>
+          <button type="button" class="text-rose-400 hover:text-rose-600 hover:bg-rose-50 p-1.5 rounded-lg transition shrink-0" onclick="document.getElementById('${rowId}').remove()" title="削除">
+            <svg class="w-4 h-4 pointer-events-none" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+            </svg>
+          </button>
+        </div>
+        <div class="grid grid-cols-4 gap-1 mt-1">
+          <label class="flex items-center justify-center p-1 rounded border border-slate-200 cursor-pointer text-center bg-white">
+            <input type="radio" name="type-${rowId}" value="normal" class="mr-1" ${type === 'normal' ? 'checked' : ''}>
+            <span class="text-[9px] font-bold text-slate-600">通常</span>
+          </label>
+          <label class="flex items-center justify-center p-1 rounded border border-emerald-200 cursor-pointer text-center bg-emerald-50/10">
+            <input type="radio" name="type-${rowId}" value="practice" class="mr-1" ${type === 'practice' ? 'checked' : ''}>
+            <span class="text-[9px] font-bold text-emerald-700">練習</span>
+          </label>
+          <label class="flex items-center justify-center p-1 rounded border border-rose-200 cursor-pointer text-center bg-rose-50/10">
+            <input type="radio" name="type-${rowId}" value="match" class="mr-1" ${type === 'match' ? 'checked' : ''}>
+            <span class="text-[9px] font-bold text-rose-700">大会</span>
+          </label>
+          <label class="flex items-center justify-center p-1 rounded border border-amber-200 cursor-pointer text-center bg-amber-50/10">
+            <input type="radio" name="type-${rowId}" value="off" class="mr-1" ${type === 'off' ? 'checked' : ''}>
+            <span class="text-[9px] font-bold text-amber-600">オフ</span>
+          </label>
+        </div>
+      `;
+      return div;
+    }
+
+    // 編集モーダル内で予定追加ボタンが押された時
+    btnAddModalSchedule.onclick = function() {
+      const newRow = createModalScheduleRow();
+      modalSchedulesContainer.appendChild(newRow);
+      newRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    };
+
+    // 👑 クリップボードから貼り付けボタンが押された時
+    btnPasteModalSchedule.onclick = function() {
+      if (clipboardSchedule) {
+        const newRow = createModalScheduleRow(clipboardSchedule.text, clipboardSchedule.type);
+        modalSchedulesContainer.appendChild(newRow);
+        newRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    };
+
+    // --- イベントハンドラ ---
+    selectYear.onchange = function() {
+      currentYear = parseInt(this.value);
+      updateCalendarView();
+    };
+
+    selectMonth.onchange = function() {
+      currentMonth = parseInt(this.value);
+      updateCalendarView();
+    };
+
+    btnPrevMonth.onclick = function() {
+      currentMonth--;
+      if (currentMonth < 1) {
+        currentMonth = 12;
+        currentYear--;
+        const yearOption = selectYear.querySelector(`option[value="${currentYear}"]`);
+        if (!yearOption) {
+          currentYear++;
+          currentMonth = 1;
+        }
+      }
+      selectYear.value = String(currentYear);
+      selectMonth.value = String(currentMonth);
+      updateCalendarView();
+    };
+
+    btnNextMonth.onclick = function() {
+      currentMonth++;
+      if (currentMonth > 12) {
+        currentMonth = 1;
+        currentYear++;
+        const yearOption = selectYear.querySelector(`option[value="${currentYear}"]`);
+        if (!yearOption) {
+          currentYear--;
+          currentMonth = 12;
+        }
+      }
+      selectYear.value = String(currentYear);
+      selectMonth.value = String(currentMonth);
+      updateCalendarView();
+    };
+
+    btnLoadSample.onclick = function() {
+      if (confirm('手本予定データをロードします。よろしいですか？')) {
+        const prefix = `${currentYear}-06-`;
+        
+        const SAMPLE = {
+          "02": { duty: "中本家", schedules: [] },
+          "04": { duty: "若木家", schedules: [] },
+          "06": { duty: "-", schedules: [{ text: "全日本学童軟式野球大会", type: "match" }] },
+          "07": { duty: "-", schedules: [{ text: "全日本学童軟式野球大会", type: "match" }, { text: "※雨天決行", type: "normal" }] },
+          "09": { duty: "出西家", schedules: [] },
+          "11": { duty: "渡邉家", schedules: [] },
+          "13": { duty: "-", schedules: [{ text: "オフ", type: "off" }] },
+          "14": { duty: "-", schedules: [{ text: "練習試合", type: "practice" }, { text: "役員会 (19:00〜)", type: "normal" }] },
+          "16": { duty: "大西家", schedules: [] },
+          "18": { duty: "山口家（中村家）", schedules: [] },
+          "20": { duty: "-", schedules: [{ text: "通常練習", type: "practice" }] },
+          "21": { duty: "-", schedules: [{ text: "通常練習", type: "practice" }] },
+          "23": { duty: "石村家", schedules: [] },
+          "25": { duty: "小椋家", schedules: [] },
+          "27": { duty: "-", schedules: [{ text: "県学童軟式野球大会", type: "match" }] },
+          "28": { duty: "-", schedules: [{ text: "県学童軟式野球大会", type: "match" }, { text: "新入部員歓迎会 🍖", type: "normal" }] },
+          "30": { duty: "原田家", schedules: [] }
+        };
+        
+        Object.keys(SAMPLE).forEach(day => {
+          dutyData[prefix + day] = JSON.parse(JSON.stringify(SAMPLE[day]));
+        });
+        currentMonth = 6;
+        selectMonth.value = "6";
+        saveAllToLocalStorage();
+        updateCalendarView();
+      }
+    };
+
+    btnClearAll.onclick = function() {
+      if (confirm(`${currentYear}年${currentMonth}月のデータをすべてクリアしますか？`)) {
+        const prefix = `${currentYear}-${String(currentMonth).padStart(2, '0')}-`;
+        Object.keys(dutyData).forEach(key => {
+          if (key.startsWith(prefix)) delete dutyData[key];
+        });
+        saveAllToLocalStorage();
+        updateCalendarView();
+      }
+    };
+
+    btnToggleAdmin.onclick = function() { setAdminMode(!isAdminMode); };
+
+    btnAutoAssign.onclick = function() {
+      if (memberList.length === 0) {
+        alert('先に「👥 メンバー設定」タブで当番メンバーを登録してください。');
+        return;
+      }
+
+      const firstDay = new Date(currentYear, currentMonth - 1, 1);
+      const lastDay = new Date(currentYear, currentMonth, 0);
+      const numDays = lastDay.getDate();
+      let hasExistingDuty = false;
+
+      for (let day = 1; day <= numDays; day++) {
+        const dayOfWeek = new Date(currentYear, currentMonth - 1, day).getDay();
+        if (dayOfWeek === 2 || dayOfWeek === 4) {
+          const dateStr = formatDateKey(currentYear, currentMonth, day);
+          if (dutyData[dateStr] && dutyData[dateStr].duty && dutyData[dateStr].duty !== '-') {
+            hasExistingDuty = true;
+            break;
+          }
+        }
+      }
+
+      if (hasExistingDuty) {
+        if (!confirm('すでに今月の火曜日または木曜日に鍵当番が設定されている日があります。ローテ順で一括上書きしますか？')) {
+          return;
+        }
+      }
+
+      const lastDuty = getLastDutyOfPreviousMonth(currentYear, currentMonth);
+      
+      let nextIndex = 0;
+      if (lastDuty) {
+        const lastIndex = memberList.indexOf(lastDuty);
+        if (lastIndex !== -1) {
+          nextIndex = (lastIndex + 1) % memberList.length;
+        }
+      }
+
+      let count = 0;
+      for (let day = 1; day <= numDays; day++) {
+        const dayOfWeek = new Date(currentYear, currentMonth - 1, day).getDay();
+        if (dayOfWeek === 2 || dayOfWeek === 4) {
+          const dateStr = formatDateKey(currentYear, currentMonth, day);
+          const assignedMember = memberList[nextIndex];
+          
+          if (!dutyData[dateStr]) {
+            dutyData[dateStr] = { duty: '', schedules: [] };
+          }
+          
+          dutyData[dateStr].duty = assignedMember;
+          nextIndex = (nextIndex + 1) % memberList.length;
+          count++;
+        }
+      }
+
+      saveAllToLocalStorage();
+      updateCalendarView();
+      
+      let startMsg = lastDuty ? `前月の最終当番「${lastDuty}」の次の人` : `名簿の1番目の人`;
+      alert(`🎉 割り当てが完了しました！\n今月の火曜・木曜（計${count}日分）に対して、${startMsg}からローテーション順に自動配置しました。`);
+    };
+
+    btnJsonExport.onclick = function() {
+      try {
+        const exportPackage = { schedules: dutyData, members: memberList };
+        const dataStr = JSON.stringify(exportPackage, null, 2);
+        const blob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const today = new Date();
+        const yyyymmdd = today.getFullYear() + String(today.getMonth() + 1).padStart(2, '0') + String(today.getDate()).padStart(2, '0');
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `鍵当番データ_${yyyymmdd}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } catch (err) {
+        alert('書き出しに失敗しました。');
+      }
+    };
+
+    inputJsonImport.onchange = function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        try {
+          const importedPackage = JSON.parse(evt.target.result);
+          if (confirm('データを上書きしますか？')) {
+            if (importedPackage.schedules) {
+              dutyData = importedPackage.schedules;
+              if (importedPackage.members && Array.isArray(importedPackage.members)) {
+                memberList = importedPackage.members;
+              }
+            } else {
+              dutyData = importedPackage;
+            }
+            
+            upgradeDataStructure();
+            saveAllToLocalStorage();
+            updateCalendarView();
+            updateMembersListView();
+            alert('読込が完了しました！');
+          }
+        } catch (err) {
+          alert('正しいJSONファイルを選択してください。');
+        } finally {
+          inputJsonImport.value = '';
+        }
+      };
+      reader.readAsText(file);
+    };
+
+    // 👑 究極改善：ファイル肥大化・バグ増殖を完全に防ぐセルフクリーンアップ保存エンジン
+    btnHtmlBuild.onclick = function() {
+      try {
+        const cloneHtml = document.documentElement.cloneNode(true);
+        
+        // 👑 【重要】ファイルサイズ肥大化防止：保存前にクローン側のカレンダーとリストの中身を空にする
+        // 次回開いたときに最新データで自動生成されるため、保存するDOMに描画済みの要素を含める必要はありません。
+        const cloneGrid = cloneHtml.querySelector('#calendar-grid');
+        if (cloneGrid) cloneGrid.innerHTML = '';
+        const cloneList = cloneHtml.querySelector('#list-tbody');
+        if (cloneList) cloneList.innerHTML = '';
+        const cloneMembers = cloneHtml.querySelector('#members-list-container');
+        if (cloneMembers) cloneMembers.innerHTML = '';
+
+        // UIの状態もリセット
+        const modal = cloneHtml.querySelector('#modal-edit');
+        if (modal) modal.classList.add('hidden');
+        const modalPreview = cloneHtml.querySelector('#modal-preview');
+        if (modalPreview) modalPreview.classList.add('hidden');
+        const dropZone = cloneHtml.querySelector('#drop-zone-overlay');
+        if (dropZone) {
+            dropZone.classList.remove('opacity-100', 'scale-100');
+            dropZone.classList.add('opacity-0', 'pointer-events-none', 'scale-95');
+        }
+
+        // 👑 【超重要】Tailwind CDNが動的生成した巨大なCSS(数MB)を削除してファイル肥大化を防ぐ
+        const styles = cloneHtml.querySelectorAll('style');
+        styles.forEach(s => {
+          // 自分が書いたCSS（.share-canvas が含まれる）以外はTailwindの生成物とみなし削除
+          if (!s.textContent.includes('.share-canvas')) {
+            s.parentNode.removeChild(s);
+          }
+        });
+
+        // 👑 スクリプトの中身だけを安全に書き換える（HTML全体を置換してコードが破壊されるのを防ぐ）
+        const scripts = cloneHtml.querySelectorAll('script');
+        scripts.forEach(s => {
+          if (s.textContent.includes('const EMBEDDED_DATA')) {
+            let scriptContent = s.textContent;
+            
+            // 1. EMBEDDED_DATA の置換
+            const rawJsonString = JSON.stringify(dutyData, null, 2);
+            const formattedJson = rawJsonString.replace(/\n/g, '\n    ');
+            scriptContent = scriptContent.replace(/const EMBEDDED_DATA = \{[\s\S]*?\};/, `const EMBEDDED_DATA = ${formattedJson};`);
+
+            // 2. EMBEDDED_MEMBERS の置換
+            const rawMembersString = JSON.stringify(memberList, null, 2);
+            const formattedMembers = rawMembersString.replace(/\n/g, '\n    ');
+            scriptContent = scriptContent.replace(/const EMBEDDED_MEMBERS = \[[\s\S]*?\];/, `const EMBEDDED_MEMBERS = ${formattedMembers};`);
+
+            // 3. 次回配布時のデフォルトを「閲覧モード（IS_ADMIN_DEFAULT = false）」にする
+            scriptContent = scriptContent.replace(/const IS_ADMIN_DEFAULT = (true|false);/, `const IS_ADMIN_DEFAULT = false;`);
+
+            s.textContent = scriptContent;
+          }
+        });
+
+        let updatedHtml = '<!DOCTYPE html>\n<html lang="ja">\n' + cloneHtml.innerHTML + '\n</html>';
+
+        const blob = new Blob([updatedHtml], { type: 'text/html;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const today = new Date();
+        const yyyymmdd = today.getFullYear() + String(today.getMonth() + 1).padStart(2, '0') + String(today.getDate()).padStart(2, '0');
+        
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `鍵当番スケジュール表_${yyyymmdd}.html`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        alert('🎉 配布用HTMLファイルが正常に書き出されました！\n\n【💡 開いた後の注意点】\n誤操作防止のため、書き出されたファイルを開いた最初は「閲覧モード（入力不可）」になります。\n左下の「🔧 管理者モードへ」ボタンを押すことで、再び入力・編集ができるようになります！');
+      } catch (err) {
+        alert('書き出しに失敗しました。');
+        console.error(err);
+      }
+    };
+
+    function openEditModal(dateKey, day, dayOfWeek) {
+      editDateKey.value = dateKey;
+      modalDateTitle.textContent = `${currentYear}年${currentMonth}月${day}日 (${jpnWeekdays[dayOfWeek]})`;
+      
+      const currentVal = dutyData[dateKey] || { duty: '', schedules: [] };
+      editDutySelect.innerHTML = '';
+      
+      const defaultOption = document.createElement('option');
+      defaultOption.value = ''; defaultOption.textContent = '-- 選択なし --';
+      editDutySelect.appendChild(defaultOption);
+
+      memberList.forEach(member => {
+        const opt = document.createElement('option');
+        opt.value = member; opt.textContent = `🔑 ${member}`;
+        editDutySelect.appendChild(opt);
+      });
+
+      const noneOption = document.createElement('option');
+      noneOption.value = '-'; noneOption.textContent = 'なし（-）';
+      editDutySelect.appendChild(noneOption);
+
+      const manualOption = document.createElement('option');
+      manualOption.value = '__manual__'; manualOption.textContent = '直接手動入力...';
+      editDutySelect.appendChild(manualOption);
+
+      const currentDuty = currentVal.duty || '';
+      if (currentDuty === '' || currentDuty === '-') {
+        editDutySelect.value = currentDuty;
+        manualDutyContainer.classList.add('hidden');
+        editDuty.value = '';
+      } else if (memberList.includes(currentDuty)) {
+        editDutySelect.value = currentDuty;
+        manualDutyContainer.classList.add('hidden');
+        editDuty.value = '';
+      } else {
+        editDutySelect.value = '__manual__';
+        manualDutyContainer.classList.remove('hidden');
+        editDuty.value = currentDuty;
+      }
+
+      editDutySelect.onchange = function() {
+        if (this.value === '__manual__') {
+          manualDutyContainer.classList.remove('hidden'); editDuty.focus();
+        } else {
+          manualDutyContainer.classList.add('hidden'); editDuty.value = '';
+        }
+      };
+
+      modalSchedulesContainer.innerHTML = '';
+      if (currentVal.schedules && currentVal.schedules.length > 0) {
+        currentVal.schedules.forEach(sched => {
+          const row = createModalScheduleRow(sched.text, sched.type);
+          modalSchedulesContainer.appendChild(row);
+        });
+      } else {
+        modalSchedulesContainer.appendChild(createModalScheduleRow());
+      }
+      
+      // 👑 クリップボードにデータがあれば「貼付」ボタンを表示する
+      if (clipboardSchedule) {
+        btnPasteModalSchedule.classList.remove('hidden');
+      } else {
+        btnPasteModalSchedule.classList.add('hidden');
+      }
+
+      modalEdit.classList.remove('hidden');
+    }
+
+    function closeEditModal() { modalEdit.classList.add('hidden'); }
+    modalClose.onclick = closeEditModal;
+    modalCancel.onclick = closeEditModal;
+
+    modalSave.onclick = function() {
+      const dateKey = editDateKey.value;
+      const selectVal = editDutySelect.value;
+      let duty = (selectVal === '__manual__') ? editDuty.value.trim() : selectVal;
+
+      const schedules = [];
+      const rows = modalSchedulesContainer.children;
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        const textInput = row.querySelector('.modal-sched-text');
+        const text = textInput ? textInput.value.trim() : '';
+        const selectedRadio = row.querySelector(`input[name="type-${row.id}"]:checked`);
+        const type = selectedRadio ? selectedRadio.value : 'normal';
+        
+        if (text) {
+          schedules.push({ text, type });
+        }
+      }
+
+      if (!duty && schedules.length === 0) {
+        delete dutyData[dateKey];
+      } else {
+        dutyData[dateKey] = { duty, schedules };
+      }
+      saveAllToLocalStorage();
+      updateCalendarView();
+      closeEditModal();
+    };
+
+    modalDelete.onclick = function() {
+      const dateKey = editDateKey.value;
+      delete dutyData[dateKey];
+      saveAllToLocalStorage();
+      updateCalendarView();
+      closeEditModal();
+    };
+
+    tabCalendar.onclick = function() { currentView = 'calendar'; toggleTabUi(tabCalendar, viewCalendar); };
+    tabList.onclick = function() { currentView = 'list'; toggleTabUi(tabList, viewList); };
+    tabMembers.onclick = function() { currentView = 'members'; toggleTabUi(tabMembers, viewMembers); };
+
+    function toggleTabUi(activeTabBtn, activeViewEl) {
+      [tabCalendar, tabList, tabMembers].forEach(btn => {
+        btn.className = "py-2 text-xs font-bold rounded-lg transition-all text-center text-slate-600 hover:text-slate-800";
+      });
+      activeTabBtn.className = "py-2 text-xs font-bold rounded-lg transition-all text-center bg-white text-blue-800 shadow-sm";
+      [viewCalendar, viewList, viewMembers].forEach(view => view.classList.add('hidden'));
+      activeViewEl.classList.remove('hidden');
+    }
+
+    btnExport.onclick = function() {
+      const originalBtnHtml = btnExport.innerHTML;
+      btnExport.innerHTML = `<span class="inline-block animate-spin mr-2">⏳</span> 画像を生成中...`;
+      btnExport.disabled = true;
+      const shareArea = document.getElementById('share-area');
+      
+      const today = new Date();
+      const yyyymmdd = today.getFullYear() + String(today.getMonth() + 1).padStart(2, '0') + String(today.getDate()).padStart(2, '0');
+      
+      document.fonts.ready.then(() => {
+        setTimeout(() => {
+          html2canvas(shareArea, { 
+            scale: 2.5, 
+            useCORS: true, 
+            backgroundColor: '#ffffff', 
+            logging: false,
+            windowWidth: 800,
+            onclone: function(clonedDoc) {
+              const clonedArea = clonedDoc.getElementById('share-area');
+              if (clonedArea) {
+                clonedArea.style.width = '800px';
+                clonedArea.style.maxWidth = '800px';
+              }
+            }
+          }).then(canvas => {
+            try {
+              const imgData = canvas.toDataURL('image/png');
+              previewImage.src = imgData;
+              btnDownloadDirect.href = imgData;
+              btnDownloadDirect.download = `鍵当番表_${yyyymmdd}.png`;
+              modalPreview.classList.remove('hidden');
+            } catch (err) {
+              canvas.toBlob((blob) => {
+                const url = URL.createObjectURL(blob);
+                btnDownloadDirect.href = url;
+                btnDownloadDirect.download = `鍵当番表_${yyyymmdd}.png`;
+                modalPreview.classList.remove('hidden');
+              });
+            } finally {
+              btnExport.innerHTML = originalBtnHtml;
+              btnExport.disabled = false;
+            }
+          }).catch(() => {
+            alert('画像作成に失敗しました。');
+            btnExport.innerHTML = originalBtnHtml;
+            btnExport.disabled = false;
+          });
+        }, 300);
+      });
+    };
+
+    previewClose.onclick = function() { modalPreview.classList.add('hidden'); };
+  </script>
+
+</body>
+</html>
