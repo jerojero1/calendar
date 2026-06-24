@@ -1,0 +1,343 @@
+{
+  "schedules": {
+    "2026-06-02": {
+      "duty": "中本家",
+      "schedules": []
+    },
+    "2026-06-04": {
+      "duty": "若木家",
+      "schedules": []
+    },
+    "2026-06-06": {
+      "duty": "-",
+      "schedules": [
+        {
+          "text": "オフ",
+          "type": "off"
+        }
+      ]
+    },
+    "2026-06-07": {
+      "duty": "-",
+      "schedules": [
+        {
+          "text": "郡家西、醇風(交流戦)",
+          "type": "practice"
+        }
+      ]
+    },
+    "2026-06-09": {
+      "duty": "出西家",
+      "schedules": []
+    },
+    "2026-06-11": {
+      "duty": "山口家",
+      "schedules": []
+    },
+    "2026-06-13": {
+      "duty": "",
+      "schedules": [
+        {
+          "text": "練習(羽合球場)",
+          "type": "practice"
+        }
+      ]
+    },
+    "2026-06-14": {
+      "duty": "-",
+      "schedules": [
+        {
+          "text": "東郷泊(交流戦)",
+          "type": "practice"
+        }
+      ]
+    },
+    "2026-06-16": {
+      "duty": "大西家",
+      "schedules": [
+        {
+          "text": "澤田さんが対応",
+          "type": "normal"
+        }
+      ]
+    },
+    "2026-06-18": {
+      "duty": "山口家（中村家）",
+      "schedules": []
+    },
+    "2026-06-20": {
+      "duty": "-",
+      "schedules": [
+        {
+          "text": "歓迎会",
+          "type": "normal"
+        },
+        {
+          "text": "練習(羽合)8-12",
+          "type": "practice"
+        }
+      ]
+    },
+    "2026-06-23": {
+      "duty": "石村家",
+      "schedules": [
+        {
+          "text": "原田さんが対応",
+          "type": "normal"
+        }
+      ]
+    },
+    "2026-06-25": {
+      "duty": "小椋家",
+      "schedules": []
+    },
+    "2026-06-30": {
+      "duty": "原田家",
+      "schedules": []
+    },
+    "2026-03-31": {
+      "duty": "山口家",
+      "schedules": []
+    },
+    "2026-04-02": {
+      "duty": "石村家",
+      "schedules": []
+    },
+    "2026-04-07": {
+      "duty": "小椋家",
+      "schedules": []
+    },
+    "2026-04-09": {
+      "duty": "原田家",
+      "schedules": []
+    },
+    "2026-04-14": {
+      "duty": "澤田家",
+      "schedules": []
+    },
+    "2026-04-16": {
+      "duty": "山根家",
+      "schedules": []
+    },
+    "2026-04-21": {
+      "duty": "中本家",
+      "schedules": []
+    },
+    "2026-04-23": {
+      "duty": "若木家",
+      "schedules": []
+    },
+    "2026-04-28": {
+      "duty": "出西家",
+      "schedules": []
+    },
+    "2026-04-30": {
+      "duty": "渡邉家",
+      "schedules": []
+    },
+    "2026-05-07": {
+      "duty": "大西家",
+      "schedules": []
+    },
+    "2026-05-12": {
+      "duty": "山口家",
+      "schedules": []
+    },
+    "2026-05-14": {
+      "duty": "石村家",
+      "schedules": []
+    },
+    "2026-05-19": {
+      "duty": "小椋家",
+      "schedules": []
+    },
+    "2026-05-21": {
+      "duty": "原田家",
+      "schedules": []
+    },
+    "2026-05-26": {
+      "duty": "澤田家",
+      "schedules": []
+    },
+    "2026-05-28": {
+      "duty": "山根家",
+      "schedules": []
+    },
+    "2026-05-05": {
+      "duty": "-",
+      "schedules": [
+        {
+          "text": "オフ",
+          "type": "off"
+        }
+      ]
+    },
+    "2026-07-02": {
+      "duty": "澤田家",
+      "schedules": []
+    },
+    "2026-07-07": {
+      "duty": "山根家(山口)",
+      "schedules": [
+        {
+          "text": "山口が対応",
+          "type": "normal"
+        }
+      ]
+    },
+    "2026-07-09": {
+      "duty": "中本家",
+      "schedules": []
+    },
+    "2026-07-14": {
+      "duty": "若木家",
+      "schedules": []
+    },
+    "2026-07-16": {
+      "duty": "出西家",
+      "schedules": []
+    },
+    "2026-07-21": {
+      "duty": "大西家",
+      "schedules": []
+    },
+    "2026-07-23": {
+      "duty": "山口家",
+      "schedules": []
+    },
+    "2026-07-28": {
+      "duty": "石村家",
+      "schedules": []
+    },
+    "2026-07-30": {
+      "duty": "小椋家",
+      "schedules": []
+    },
+    "2026-07-04": {
+      "duty": "",
+      "schedules": [
+        {
+          "text": "練習or交流戦",
+          "type": "practice"
+        }
+      ]
+    },
+    "2026-07-11": {
+      "duty": "",
+      "schedules": [
+        {
+          "text": "練習or交流戦",
+          "type": "practice"
+        }
+      ]
+    },
+    "2026-07-18": {
+      "duty": "",
+      "schedules": [
+        {
+          "text": "練習or交流戦",
+          "type": "practice"
+        }
+      ]
+    },
+    "2026-07-25": {
+      "duty": "",
+      "schedules": [
+        {
+          "text": "練習or交流戦",
+          "type": "practice"
+        }
+      ]
+    },
+    "2026-07-12": {
+      "duty": "",
+      "schedules": [
+        {
+          "text": "練習or交流戦",
+          "type": "practice"
+        }
+      ]
+    },
+    "2026-07-05": {
+      "duty": "",
+      "schedules": [
+        {
+          "text": "練習or交流戦",
+          "type": "practice"
+        }
+      ]
+    },
+    "2026-07-19": {
+      "duty": "",
+      "schedules": [
+        {
+          "text": "練習or交流戦",
+          "type": "practice"
+        }
+      ]
+    },
+    "2026-07-26": {
+      "duty": "",
+      "schedules": [
+        {
+          "text": "練習or交流戦",
+          "type": "practice"
+        }
+      ]
+    },
+    "2026-06-21": {
+      "duty": "",
+      "schedules": [
+        {
+          "text": "ファイナルカップ(用瀬)美保",
+          "type": "match"
+        },
+        {
+          "text": "交流戦(TMC)美保",
+          "type": "normal"
+        }
+      ]
+    },
+    "2026-06-27": {
+      "duty": "",
+      "schedules": [
+        {
+          "text": "県学童軟式野球大会(運営応援)11:00-",
+          "type": "match"
+        },
+        {
+          "text": "練習(羽合)8-12",
+          "type": "practice"
+        },
+        {
+          "text": "補助金受け取り18:00-",
+          "type": "normal"
+        }
+      ]
+    },
+    "2026-06-28": {
+      "duty": "",
+      "schedules": [
+        {
+          "text": "県学童軟式野球大会",
+          "type": "match"
+        },
+        {
+          "text": "交流戦(北条ク)北条",
+          "type": "normal"
+        }
+      ]
+    }
+  },
+  "members": [
+    "中本家",
+    "若木家",
+    "出西家",
+    "大西家",
+    "山口家",
+    "石村家",
+    "小椋家",
+    "原田家",
+    "澤田家"
+  ]
+}

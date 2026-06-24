@@ -159,7 +159,6 @@
       <div class="flex items-center gap-2">
         <button id="btn-prev-month" class="bg-blue-700 hover:bg-blue-600 px-3 py-1.5 rounded text-sm font-bold transition">◀ 前月</button>
         <div class="bg-white text-slate-800 font-extrabold px-4 py-1.5 rounded shadow flex items-center gap-2">
-          <!-- JSで現在の年を基準に、過去2年〜未来7年の選択肢を自動生成する -->
           <select id="select-year" class="bg-transparent border-none outline-none cursor-pointer text-sm"><option value="2024">2024年</option><option value="2025">2025年</option><option value="2026">2026年</option><option value="2027">2027年</option><option value="2028">2028年</option><option value="2029">2029年</option><option value="2030">2030年</option><option value="2031">2031年</option><option value="2032">2032年</option><option value="2033">2033年</option></select>
           <select id="select-month" class="bg-transparent border-none outline-none cursor-pointer text-sm text-blue-700"><option value="1">1月</option><option value="2">2月</option><option value="3">3月</option><option value="4">4月</option><option value="5">5月</option><option value="6">6月</option><option value="7">7月</option><option value="8">8月</option><option value="9">9月</option><option value="10">10月</option><option value="11">11月</option><option value="12">12月</option></select>
         </div>
@@ -217,18 +216,38 @@
           💾 日常データの保存・読込 (JSON)
         </h2>
         <p class="text-xs text-slate-500 leading-relaxed">
-          日常的なやり取りは、予定とメンバーを含むJSONを**画面へドラッグ＆ドロップ**するか、下から読み込めます。
+          読み込んでいるファイルに<span class="font-bold text-blue-600">直接「上書き」</span>することも、<span class="font-bold text-emerald-600">「新しく別名保存（ファイル名指定可能）」</span>して複製することも可能です。
         </p>
         
-        <div class="grid grid-cols-2 gap-2 pt-1">
-          <button id="btn-json-export" class="bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 text-xs font-bold py-2.5 px-3 rounded-lg transition flex items-center justify-center gap-1">
-            📤 予定をJSON保存
+        <!-- 現在紐づいているファイル情報の表示エリア -->
+        <div id="file-status-badge" class="hidden px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200 mb-2 flex items-center justify-between">
+          <span class="truncate pr-2">📂 開いているファイル: <span id="current-file-name" class="font-mono font-bold text-blue-700">未選択</span></span>
+          <button id="btn-clear-file-handle" class="text-rose-500 hover:text-rose-700 font-bold shrink-0 text-[10px]" title="ファイルの紐付けを解除して新規扱いとして保存します">解除</button>
+        </div>
+
+        <!-- アクションボタン群 -->
+        <div class="space-y-2">
+          <!-- 上書き保存ボタン（開いているファイルがない時は非表示・あるいは自動フォールバック） -->
+          <button id="btn-json-export" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-2.5 px-3 rounded-lg text-xs transition flex items-center justify-center gap-1.5 shadow-sm">
+            💾 JSON上書き保存
           </button>
           
-          <label class="bg-slate-50 hover:bg-slate-100 text-slate-800 border border-slate-200 text-xs font-bold py-2.5 px-3 rounded-lg transition flex items-center justify-center gap-1 cursor-pointer text-center">
-            📥 JSONを読込
-            <input type="file" id="input-json-import" accept=".json" class="hidden">
-          </label>
+          <div class="grid grid-cols-2 gap-2 pt-1">
+            <!-- 別名で新しく保存するボタン -->
+            <button id="btn-json-save-as" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold py-2 px-3 rounded-lg transition flex items-center justify-center gap-1">
+              ✨ 別名で新規保存
+            </button>
+            
+            <!-- JSONを開く（インポート）ボタン -->
+            <button id="btn-json-import-api" class="bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 text-xs font-bold py-2 px-3 rounded-lg transition flex items-center justify-center gap-1">
+              📥 JSONを開く
+            </button>
+            
+            <label id="label-json-import-legacy" class="hidden bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 text-xs font-bold py-2 px-3 rounded-lg transition flex items-center justify-center gap-1 cursor-pointer text-center">
+              📥 JSONを開く
+              <input type="file" id="input-json-import" accept=".json" class="hidden">
+            </label>
+          </div>
         </div>
       </div>
 
@@ -273,11 +292,11 @@
             💡 使い方
           </h3>
           <ul id="usage-list" class="text-xs text-slate-600 space-y-1.5 list-disc pl-4 leading-relaxed">
-          <li>カレンダー内のバッジ（当番・予定）を<b>つかんで別の日へドラッグ＆ドロップ</b>で移動できます。<b>（CtrlキーやAltキーを押しながらで複製）</b></li>
-          <li>1日に<b>複数のスケジュール</b>（練習・試合など）を重ねて登録できます。</li>
-          <li>日常的なデータのやり取りは<b>「JSON保存・読込」</b>で行えます。</li>
-          <li>完全に最新データを埋め込んだ新ファイルを配るには、上の<b>「新しい配布用HTMLを保存」</b>を押してください。</li>
-        </ul>
+            <li>カレンダー内のバッジ（当番・予定）を<b>つかんで別の日へドラッグ＆ドロップ</b>で移動できます。<b>（CtrlキーやAltキーを押しながらで複製）</b></li>
+            <li>1日に<b>複数のスケジュール</b>（練習・試合など）を重ねて登録できます。</li>
+            <li>日常的なデータのやり取りは<b>「JSON保存・読込」</b>で行えます。</li>
+            <li>完全に最新データを埋め込んだ新ファイルを配るには、上の<b>「新しい配布用HTMLを保存」</b>を押してください。</li>
+          </ul>
         </div>
         
         <!-- 🔐 隠しモード切り替えスイッチ -->
@@ -831,6 +850,9 @@
     // 👑 クリップボード用変数（コピー＆ペースト機能用）
     let clipboardSchedule = null;
 
+    // 💾 File System Access API用のファイルハンドル（読み込んだファイルを上書きするために保持する）
+    let activeFileHandle = null;
+
     // --- DOM要素取得 ---
     const selectYear = document.getElementById('select-year');
     const selectMonth = document.getElementById('select-month');
@@ -852,8 +874,16 @@
     const btnExport = document.getElementById('btn-export');
     const btnLoadSample = document.getElementById('btn-load-sample');
     const btnClearAll = document.getElementById('btn-clear-all');
+    
+    // JSON保存・読込用コントロール
     const btnJsonExport = document.getElementById('btn-json-export');
+    const btnJsonSaveAs = document.getElementById('btn-json-save-as');
+    const btnJsonImportApi = document.getElementById('btn-json-import-api');
+    const labelJsonImportLegacy = document.getElementById('label-json-import-legacy');
     const inputJsonImport = document.getElementById('input-json-import');
+    const fileStatusBadge = document.getElementById('file-status-badge');
+    const currentFileName = document.getElementById('current-file-name');
+    const btnClearFileHandle = document.getElementById('btn-clear-file-handle');
     
     const appModeSubtitle = document.getElementById('app-mode-subtitle');
     const adminPanel = document.getElementById('admin-panel');
@@ -888,15 +918,34 @@
     const previewClose = document.getElementById('preview-close');
 
     // --- 初期化処理 ---
-    window.onload = function() {
+    window.onload = async function() {
       const today = new Date();
       currentYear = today.getFullYear();
       currentMonth = today.getMonth() + 1;
 
       setupDynamicSelectOptions();
+      setupImportButtonVisibility();
       
-      // 1. メンバーリストの読み込み
-      if (typeof EMBEDDED_MEMBERS !== 'undefined' && EMBEDDED_MEMBERS && EMBEDDED_MEMBERS.length > 0) {
+      // 👑 【追加機能】同一フォルダの data.json の自動読み込みを試みる
+      let autoLoadedData = null;
+      try {
+        // ※注意：file:// で直接HTMLを開いた場合、ブラウザのセキュリティ制限によりエラーになります。
+        // Webサーバー経由、または制限を解除したブラウザ環境で開いている場合のみ成功します。
+        const response = await fetch('data.json');
+        if (response.ok) {
+          autoLoadedData = await response.json();
+          console.log("data.json の自動読み込みに成功しました。");
+          // 自動読込できたファイル名を画面に表示（※この時点ではまだブラウザの書き込み権限はないため上書き不可表示になります）
+          updateActiveFileHandle(null, 'data.json (自動読込)');
+        }
+      } catch (err) {
+        console.log("data.json の自動読み込みはスキップされました（ファイルが存在しない、またはブラウザのセキュリティ制限）。");
+      }
+
+      // 1. メンバーリストの読み込み (優先順位: data.json > 埋め込み > localStorage)
+      if (autoLoadedData && autoLoadedData.members && Array.isArray(autoLoadedData.members)) {
+        memberList = [...autoLoadedData.members];
+      } else if (typeof EMBEDDED_MEMBERS !== 'undefined' && EMBEDDED_MEMBERS && EMBEDDED_MEMBERS.length > 0) {
         memberList = [...EMBEDDED_MEMBERS];
       } else {
         const savedMembers = localStorage.getItem('haway_baseball_members');
@@ -907,8 +956,12 @@
         }
       }
 
-      // 2. 予定データの読み込み
-      if (EMBEDDED_DATA && Object.keys(EMBEDDED_DATA).length > 0) {
+      // 2. 予定データの読み込み (優先順位: data.json > 埋め込み > localStorage)
+      if (autoLoadedData && autoLoadedData.schedules) {
+        dutyData = JSON.parse(JSON.stringify(autoLoadedData.schedules));
+      } else if (autoLoadedData && Object.keys(autoLoadedData).length > 0 && !autoLoadedData.members) {
+        dutyData = JSON.parse(JSON.stringify(autoLoadedData)); // 旧フォーマット互換
+      } else if (EMBEDDED_DATA && Object.keys(EMBEDDED_DATA).length > 0) {
         dutyData = JSON.parse(JSON.stringify(EMBEDDED_DATA));
       } else {
         const savedData = localStorage.getItem('haway_baseball_duty');
@@ -939,6 +992,17 @@
       spanToday.textContent = `${today.getFullYear()}/${today.getMonth() + 1}/${today.getDate()}`;
       setupDragAndDrop();
     };
+
+    // ブラウザのFile System Access APIの対応状況に応じてインポートUIを切り替える
+    function setupImportButtonVisibility() {
+      if ('showOpenFilePicker' in window) {
+        btnJsonImportApi.classList.remove('hidden');
+        labelJsonImportLegacy.classList.add('hidden');
+      } else {
+        btnJsonImportApi.classList.add('hidden');
+        labelJsonImportLegacy.classList.remove('hidden');
+      }
+    }
 
     function upgradeDataStructure() {
       Object.keys(dutyData).forEach(key => {
@@ -1019,13 +1083,31 @@
         }
       });
 
-      window.addEventListener('drop', function(e) {
-        if (e.dataTransfer && e.dataTransfer.files.length > 0) {
+      window.addEventListener('drop', async function(e) {
+        if (e.dataTransfer && e.dataTransfer.items.length > 0) {
           e.preventDefault();
           overlay.classList.remove('opacity-100', 'scale-100');
           overlay.classList.add('opacity-0', 'pointer-events-none', 'scale-95');
 
-          const file = e.dataTransfer.files[0];
+          // ドラッグされたアイテムからファイルハンドルを取得（対応ブラウザのみ）
+          let file = null;
+          let fileHandle = null;
+
+          if ('getAsFileSystemHandle' in e.dataTransfer.items[0]) {
+            try {
+              fileHandle = await e.dataTransfer.items[0].getAsFileSystemHandle();
+              if (fileHandle && fileHandle.kind === 'file') {
+                file = await fileHandle.getFile();
+              }
+            } catch (err) {
+              console.warn("ファイルハンドルの取得に失敗しました。フォールバックします。", err);
+            }
+          }
+
+          if (!file) {
+            file = e.dataTransfer.files[0];
+          }
+
           if (!file) return;
 
           if (!file.name.endsWith('.json')) {
@@ -1051,7 +1133,15 @@
                 saveAllToLocalStorage();
                 updateCalendarView();
                 updateMembersListView();
-                alert('ファイルのドラッグ読込が完了しました！');
+
+                // ファイルハンドルを登録して次回上書きできるようにする
+                if (fileHandle) {
+                  updateActiveFileHandle(fileHandle);
+                } else {
+                  updateActiveFileHandle(null, file.name);
+                }
+
+                alert('ファイルのドラッグ読込が完了しました！\n次回「上書き保存」を選択すると、このファイルに直接保存されます。');
               }
             } catch (err) {
               alert('データの解析に失敗しました。ファイルが壊れている可能性があります。');
@@ -1061,6 +1151,37 @@
         }
       });
     }
+
+    // メモリ上のファイルハンドル情報を更新して画面に状態を反映
+    function updateActiveFileHandle(handle, fallbackName = null) {
+      activeFileHandle = handle;
+      if (handle) {
+        currentFileName.textContent = handle.name;
+        fileStatusBadge.classList.remove('hidden');
+        btnJsonExport.textContent = '💾 JSON上書き保存';
+        btnJsonExport.className = "w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-2.5 px-3 rounded-lg text-xs transition flex items-center justify-center gap-1.5 shadow-sm opacity-100 cursor-pointer";
+        btnJsonExport.disabled = false;
+      } else if (fallbackName) {
+        // ハンドルは保持できないがファイル名だけわかるケース（旧来のFile APIドラッグ＆ドロップなど）
+        currentFileName.textContent = fallbackName;
+        fileStatusBadge.classList.remove('hidden');
+        btnJsonExport.textContent = '💾 JSON上書き保存 (※上書き不可)';
+        btnJsonExport.className = "w-full bg-slate-300 text-slate-500 font-bold py-2.5 px-3 rounded-lg text-xs transition flex items-center justify-center gap-1.5 cursor-not-allowed";
+        btnJsonExport.disabled = true;
+      } else {
+        currentFileName.textContent = '未選択';
+        fileStatusBadge.classList.add('hidden');
+        // 開いているファイルがない場合は、上書きボタンを無効化、または案内用の表示にする
+        btnJsonExport.textContent = '💾 JSON上書き保存 (ファイル未選択)';
+        btnJsonExport.className = "w-full bg-slate-200 text-slate-400 font-bold py-2.5 px-3 rounded-lg text-xs transition flex items-center justify-center gap-1.5 cursor-not-allowed";
+        btnJsonExport.disabled = true;
+      }
+    }
+
+    // 紐付け解除ボタン
+    btnClearFileHandle.onclick = function() {
+      updateActiveFileHandle(null);
+    };
 
     function formatDateKey(year, month, day) {
       const mm = String(month).padStart(2, '0');
@@ -1169,6 +1290,14 @@
       });
     }
 
+    function removeMember(index) {
+      if (confirm(`「${memberList[index]}」を名簿から削除しますか？`)) {
+        memberList.splice(index, 1);
+        saveAllToLocalStorage();
+        updateMembersListView();
+      }
+    }
+
     function moveMemberOrder(index, direction) {
       const targetIndex = index + direction;
       if (targetIndex < 0 || targetIndex >= memberList.length) return;
@@ -1180,6 +1309,20 @@
       saveAllToLocalStorage();
       updateMembersListView();
     }
+
+    // メンバーの追加処理
+    btnAddMember.onclick = function() {
+      const name = inputNewMember.value.trim();
+      if (!name) return;
+      if (memberList.includes(name)) {
+        alert('その名前は既に登録されています。');
+        return;
+      }
+      memberList.push(name);
+      inputNewMember.value = '';
+      saveAllToLocalStorage();
+      updateMembersListView();
+    };
 
     function getLastDutyOfPreviousMonth(year, month) {
       let prevYear = year;
@@ -1451,7 +1594,7 @@
             if (sched.type === 'off') badgeTypeClass = "badge-schedule-off";
 
             const schedBadge = document.createElement('div');
-            // 👑 予定は通常サイズのクラスを適用
+            // 👑 予定は通常サイズを適用
             schedBadge.className = `badge-schedule-base ${badgeTypeClass} transition-opacity duration-150`;
             schedBadge.textContent = sched.text;
 
@@ -1731,119 +1874,186 @@
 
     btnToggleAdmin.onclick = function() { setAdminMode(!isAdminMode); };
 
-    btnAutoAssign.onclick = function() {
-      if (memberList.length === 0) {
-        alert('先に「👥 メンバー設定」タブで当番メンバーを登録してください。');
-        return;
-      }
-
-      const firstDay = new Date(currentYear, currentMonth - 1, 1);
-      const lastDay = new Date(currentYear, currentMonth, 0);
-      const numDays = lastDay.getDate();
-      let hasExistingDuty = false;
-
-      for (let day = 1; day <= numDays; day++) {
-        const dayOfWeek = new Date(currentYear, currentMonth - 1, day).getDay();
-        if (dayOfWeek === 2 || dayOfWeek === 4) {
-          const dateStr = formatDateKey(currentYear, currentMonth, day);
-          if (dutyData[dateStr] && dutyData[dateStr].duty && dutyData[dateStr].duty !== '-') {
-            hasExistingDuty = true;
-            break;
-          }
-        }
-      }
-
-      if (hasExistingDuty) {
-        if (!confirm('すでに今月の火曜日または木曜日に鍵当番が設定されている日があります。ローテ順で一括上書きしますか？')) {
-          return;
-        }
-      }
-
-      const lastDuty = getLastDutyOfPreviousMonth(currentYear, currentMonth);
-      
-      let nextIndex = 0;
-      if (lastDuty) {
-        const lastIndex = memberList.indexOf(lastDuty);
-        if (lastIndex !== -1) {
-          nextIndex = (lastIndex + 1) % memberList.length;
-        }
-      }
-
-      let count = 0;
-      for (let day = 1; day <= numDays; day++) {
-        const dayOfWeek = new Date(currentYear, currentMonth - 1, day).getDay();
-        if (dayOfWeek === 2 || dayOfWeek === 4) {
-          const dateStr = formatDateKey(currentYear, currentMonth, day);
-          const assignedMember = memberList[nextIndex];
-          
-          if (!dutyData[dateStr]) {
-            dutyData[dateStr] = { duty: '', schedules: [] };
-          }
-          
-          dutyData[dateStr].duty = assignedMember;
-          nextIndex = (nextIndex + 1) % memberList.length;
-          count++;
-        }
-      }
-
-      saveAllToLocalStorage();
-      updateCalendarView();
-      
-      let startMsg = lastDuty ? `前月の最終当番「${lastDuty}」の次の人` : `名簿の1番目の人`;
-      alert(`🎉 割り当てが完了しました！\n今月の火曜・木曜（計${count}日分）に対して、${startMsg}からローテーション順に自動配置しました。`);
-    };
-
-    btnJsonExport.onclick = function() {
+    // --- 💾 究極の「上書き保存」＆「読込」＆「別名で新規保存」システム (File System Access API 対応) ---
+    
+    // 読み込みボタン（モダンブラウザ対応）
+    btnJsonImportApi.onclick = async function() {
       try {
-        const exportPackage = { schedules: dutyData, members: memberList };
-        const dataStr = JSON.stringify(exportPackage, null, 2);
-        const blob = new Blob([dataStr], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const today = new Date();
-        const yyyymmdd = today.getFullYear() + String(today.getMonth() + 1).padStart(2, '0') + String(today.getDate()).padStart(2, '0');
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `鍵当番データ_${yyyymmdd}.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        const [handle] = await window.showOpenFilePicker({
+          types: [{
+            description: 'JSONファイル',
+            accept: { 'application/json': ['.json'] }
+          }],
+          multiple: false
+        });
+
+        const file = await handle.getFile();
+        const text = await file.text();
+        importJsonContent(text, handle);
       } catch (err) {
-        alert('書き出しに失敗しました。');
+        if (err.name !== 'AbortError') {
+          alert('ファイルの読み込み中にエラーが発生しました。');
+          console.error(err);
+        }
       }
     };
 
+    // 読み込みボタン（レガシーブラウザ：input[type=file]）
     inputJsonImport.onchange = function(e) {
       const file = e.target.files[0];
       if (!file) return;
       const reader = new FileReader();
       reader.onload = function(evt) {
-        try {
-          const importedPackage = JSON.parse(evt.target.result);
-          if (confirm('データを上書きしますか？')) {
-            if (importedPackage.schedules) {
-              dutyData = importedPackage.schedules;
-              if (importedPackage.members && Array.isArray(importedPackage.members)) {
-                memberList = importedPackage.members;
-              }
-            } else {
-              dutyData = importedPackage;
-            }
-            
-            upgradeDataStructure();
-            saveAllToLocalStorage();
-            updateCalendarView();
-            updateMembersListView();
-            alert('読込が完了しました！');
-          }
-        } catch (err) {
-          alert('正しいJSONファイルを選択してください。');
-        } finally {
-          inputJsonImport.value = '';
-        }
+        importJsonContent(evt.target.result, null, file.name);
+        inputJsonImport.value = ''; // 連続読み込み可能にリセット
       };
       reader.readAsText(file);
     };
+
+    // JSONテキストデータを状態に展開する共通処理
+    function importJsonContent(textString, fileHandle = null, fallbackName = null) {
+      try {
+        const importedPackage = JSON.parse(textString);
+        if (confirm('データを読み込んでスケジュールとメンバーデータを上書きします。よろしいですか？')) {
+          if (importedPackage.schedules) {
+            dutyData = importedPackage.schedules;
+            if (importedPackage.members && Array.isArray(importedPackage.members)) {
+              memberList = importedPackage.members;
+            }
+          } else {
+            dutyData = importedPackage;
+          }
+          
+          upgradeDataStructure();
+          saveAllToLocalStorage();
+          updateCalendarView();
+          updateMembersListView();
+
+          // ファイルハンドル（または名前）を保持
+          updateActiveFileHandle(fileHandle, fallbackName);
+
+          alert('データの読み込みが完了しました！');
+        }
+      } catch (err) {
+        alert('正しいJSONデータではありません。ファイルが壊れている可能性があります。');
+        console.error(err);
+      }
+    }
+
+    // A. 既存ファイルを直接「上書き」する処理
+    btnJsonExport.onclick = async function() {
+      if (!activeFileHandle) return; // ボタン無効化されているが安全策
+
+      const exportPackage = { schedules: dutyData, members: memberList };
+      const dataStr = JSON.stringify(exportPackage, null, 2);
+
+      if ('createWritable' in activeFileHandle) {
+        try {
+          const options = { mode: 'readwrite' };
+          if (await activeFileHandle.queryPermission(options) !== 'granted') {
+            if (await activeFileHandle.requestPermission(options) !== 'granted') {
+              alert('ファイルへの書き込み許可が得られなかったため、上書きできませんでした。');
+              return;
+            }
+          }
+
+          const writable = await activeFileHandle.createWritable();
+          await writable.write(dataStr);
+          await writable.close();
+          
+          showTemporaryStatus('上書き完了！');
+        } catch (err) {
+          alert('上書き保存に失敗しました。');
+          console.error(err);
+        }
+      }
+    };
+
+    // B. 新しい別の名前のファイルに保管する処理 (名前を付けて保存 / 新規保存)
+    btnJsonSaveAs.onclick = async function() {
+      const exportPackage = { schedules: dutyData, members: memberList };
+      const dataStr = JSON.stringify(exportPackage, null, 2);
+      const today = new Date();
+      const yyyymmdd = today.getFullYear() + String(today.getMonth() + 1).padStart(2, '0') + String(today.getDate()).padStart(2, '0');
+      const defaultFileName = `鍵当番データ_新規_${yyyymmdd}.json`;
+
+      // 1. File System Access API対応ブラウザ（Chrome, Edge, Opera等）の場合
+      if ('showSaveFilePicker' in window) {
+        try {
+          const handle = await window.showSaveFilePicker({
+            suggestedName: defaultFileName,
+            types: [{
+              description: 'JSONファイル',
+              accept: { 'application/json': ['.json'] }
+            }]
+          });
+
+          const writable = await handle.createWritable();
+          await writable.write(dataStr);
+          await writable.close();
+
+          // 保存が完了したら、紐付けハンドルを新しく作成したファイルに切り替える
+          updateActiveFileHandle(handle);
+          showTemporaryStatus('別名で新規保存しました！');
+          alert(`🎉 別のファイルとして新しく保管しました！\nファイル名: ${handle.name}\n今後の「上書き保存」はこのファイルに反映されます。`);
+          return;
+        } catch (err) {
+          if (err.name === 'AbortError') return; // ユーザーがキャンセルした場合は何もしない
+          console.error("新規保存ピッカーの起動に失敗。フォールバック処理に移行します。", err);
+        }
+      }
+
+      // 2. 従来型ダウンロード処理による別名保存＆ファイル名指定プロンプト（Safari, Firefox, モバイル等）
+      try {
+        const userInputFileName = prompt('別名で新しくJSONファイルをダウンロードします。ファイル名を入力してください。', defaultFileName);
+        
+        // キャンセルの場合は処理を中断
+        if (userInputFileName === null) return;
+        
+        // ファイル名が空白、またはドットJSONが無い場合の補正
+        let finalFileName = userInputFileName.trim();
+        if (!finalFileName) {
+          finalFileName = defaultFileName;
+        }
+        if (!finalFileName.toLowerCase().endsWith('.json')) {
+          finalFileName += '.json';
+        }
+
+        const blob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = finalFileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        // ダウンロード保存の場合は実ファイルハンドルが得られないので、解除した上で新規名を設定
+        updateActiveFileHandle(null, finalFileName);
+        showTemporaryStatus('JSONを別名で保存完了！');
+        alert(`🎉 ダウンロードが完了しました！\nファイル名: ${finalFileName}`);
+      } catch (err) {
+        alert('保存に失敗しました。');
+      }
+    };
+
+    // ステータスインジケーターを一時的に書き換えて保存成功をアピールする
+    function showTemporaryStatus(message) {
+      const statusText = document.getElementById('status-text');
+      const statusDot = document.getElementById('status-dot');
+      const originalText = statusText.textContent;
+      
+      statusText.textContent = message;
+      statusDot.className = "w-2.5 h-2.5 rounded-full bg-blue-400 animate-ping";
+      
+      setTimeout(() => {
+        statusText.textContent = originalText;
+        statusDot.className = "w-2.5 h-2.5 rounded-full bg-emerald-400";
+      }, 2500);
+    }
+
 
     // 👑 究極改善：ファイル肥大化・バグ増殖を完全に防ぐセルフクリーンアップ保存エンジン
     btnHtmlBuild.onclick = function() {
