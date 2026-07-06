@@ -217,8 +217,8 @@
       "duty": "",
       "schedules": [
         {
-          "text": "練習or交流戦",
-          "type": "practice"
+          "text": "オフ",
+          "type": "off"
         }
       ]
     },
@@ -226,8 +226,12 @@
       "duty": "",
       "schedules": [
         {
-          "text": "練習or交流戦",
+          "text": "練習(羽合)8-12",
           "type": "practice"
+        },
+        {
+          "text": "太鼓渡し",
+          "type": "normal"
         }
       ]
     },
@@ -253,8 +257,8 @@
       "duty": "",
       "schedules": [
         {
-          "text": "練習or交流戦",
-          "type": "practice"
+          "text": "社(羽合)9:00-  11:00-",
+          "type": "normal"
         }
       ]
     },
@@ -262,7 +266,7 @@
       "duty": "",
       "schedules": [
         {
-          "text": "練習or交流戦",
+          "text": "練習(羽合)8-12",
           "type": "practice"
         }
       ]
