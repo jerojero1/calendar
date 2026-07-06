@@ -11,7 +11,7 @@
   <!-- Google Fonts (Noto Sans JP) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&amp;display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap" rel="stylesheet">
   
   <!-- html2canvas (画像ダウンロード用) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -159,9 +159,8 @@
       <div class="flex items-center gap-2">
         <button id="btn-prev-month" class="bg-blue-700 hover:bg-blue-600 px-3 py-1.5 rounded text-sm font-bold transition">◀ 前月</button>
         <div class="bg-white text-slate-800 font-extrabold px-4 py-1.5 rounded shadow flex items-center gap-2">
-          <!-- JSで現在の年を基準に、過去2年〜未来7年の選択肢を自動生成する -->
-          <select id="select-year" class="bg-transparent border-none outline-none cursor-pointer text-sm"><option value="2024">2024年</option><option value="2025">2025年</option><option value="2026">2026年</option><option value="2027">2027年</option><option value="2028">2028年</option><option value="2029">2029年</option><option value="2030">2030年</option><option value="2031">2031年</option><option value="2032">2032年</option><option value="2033">2033年</option></select>
-          <select id="select-month" class="bg-transparent border-none outline-none cursor-pointer text-sm text-blue-700"><option value="1">1月</option><option value="2">2月</option><option value="3">3月</option><option value="4">4月</option><option value="5">5月</option><option value="6">6月</option><option value="7">7月</option><option value="8">8月</option><option value="9">9月</option><option value="10">10月</option><option value="11">11月</option><option value="12">12月</option></select>
+          <select id="select-year" class="bg-transparent border-none outline-none cursor-pointer text-sm"></select>
+          <select id="select-month" class="bg-transparent border-none outline-none cursor-pointer text-sm text-blue-700"></select>
         </div>
         <button id="btn-next-month" class="bg-blue-700 hover:bg-blue-600 px-3 py-1.5 rounded text-sm font-bold transition">翌月 ▶</button>
       </div>
@@ -308,8 +307,8 @@
             
             <div class="mt-4 flex items-center justify-center gap-4 bg-white/10 backdrop-blur-sm rounded-xl py-2.5 px-6 border border-white/10 w-fit mx-auto">
               <div>
-                <span id="label-year" class="text-xs block font-bold text-blue-200 leading-none">2026年</span>
-                <span id="label-month" class="text-3xl font-black tracking-tight leading-none">7<span class="text-lg font-bold ml-1">月</span></span>
+                <span id="label-year" class="text-xs block font-bold text-blue-200 leading-none"></span>
+                <span id="label-month" class="text-3xl font-black tracking-tight leading-none"><span class="text-lg font-bold ml-1"></span></span>
               </div>
               <div class="w-px h-8 bg-white/20"></div>
               <div class="text-left">
@@ -374,7 +373,7 @@
 
             <div>
               <h3 class="text-sm font-bold text-slate-800 mb-3 flex items-center gap-1.5">
-                📋 ローテーション順名簿（<span id="member-count">9</span>名）
+                📋 ローテーション順名簿（<span id="member-count">0</span>名）
               </h3>
               <p class="text-[10px] text-slate-400 mb-2">※右側の「上へ」「下へ」ボタンでローテーション順（割り当て順）を自在に変更できます。</p>
               <div id="members-list-container" class="space-y-1.5 max-h-[400px] overflow-y-auto pr-1"></div>
@@ -386,7 +385,7 @@
         <!-- LINE用フッターロゴ・共有促し -->
         <div class="bg-slate-50 border-t border-slate-100 p-3 flex justify-between items-center text-slate-400 text-[10px] px-6">
           <span>連絡用</span>
-          <span class="font-bold text-slate-500">作成日: <span id="span-today">2026/7/6</span></span>
+          <span class="font-bold text-slate-500">作成日: <span id="span-today"></span></span>
         </div>
 
       </div>
@@ -860,6 +859,7 @@
     let isAdminMode = false;
     let dutyData = {};
     let memberList = [];
+    let holidaysData = {}; // 👑 祝日データ格納用
     const jpnWeekdays = ['日', '月', '火', '水', '木', '金', '土'];
     
     // 👑 クリップボード用変数（コピー＆ペースト機能用）
@@ -922,7 +922,7 @@
     const previewClose = document.getElementById('preview-close');
 
     // --- 初期化処理 ---
-    window.onload = function() {
+    window.onload = async function() {
       const today = new Date();
       currentYear = today.getFullYear();
       currentMonth = today.getMonth() + 1;
@@ -953,12 +953,21 @@
 
       upgradeDataStructure();
 
-      // 【修正箇所】以前はデータの一番古い日付の月に飛んでいたのを削除
       // 常に「開いた時の現実の月（currentYear / currentMonth）」をセレクトボックスにセットします。
       if (selectYear.querySelector(`option[value="${currentYear}"]`)) {
         selectYear.value = String(currentYear);
       }
       selectMonth.value = String(currentMonth);
+
+      // 👑 祝日データの取得 (holidays-jp APIを使用)
+      try {
+        const response = await fetch('https://holidays-jp.github.io/api/v1/date.json');
+        if (response.ok) {
+          holidaysData = await response.json();
+        }
+      } catch (error) {
+        console.warn('祝日データの取得に失敗しました', error);
+      }
 
       setAdminMode(IS_ADMIN_DEFAULT);
       updateCalendarView();
@@ -1287,10 +1296,16 @@
         const currentDayDate = new Date(currentYear, currentMonth - 1, day);
         const dayOfWeek = currentDayDate.getDay();
 
-        // 👑 カレンダーマスの高さを広めに確保
+        // 👑 祝日判定
+        const holidayName = holidaysData[dateStr];
+        const isHoliday = !!holidayName;
+        const isSundayOrHoliday = dayOfWeek === 0 || isHoliday;
+        const isSaturday = dayOfWeek === 6 && !isHoliday; // 土曜より祝日優先
+
+        // 👑 カレンダーマスの高さを広めに確保＆祝日カラー適用
         const cell = document.createElement('div');
         cell.className = `p-1 border border-slate-200 rounded-lg min-h-[100px] sm:min-h-[130px] calendar-cell-box relative transition-all ${
-          dayOfWeek === 0 ? 'bg-rose-50/20' : dayOfWeek === 6 ? 'bg-sky-50/20' : 'bg-white'
+          isSundayOrHoliday ? 'bg-rose-100' : isSaturday ? 'bg-sky-100' : 'bg-white'
         }`;
         
         if (isAdminMode) {
@@ -1385,12 +1400,18 @@
         }
 
         let dateColorClass = "text-slate-700 font-bold";
-        if (dayOfWeek === 0) dateColorClass = "text-rose-600 font-black";
-        if (dayOfWeek === 6) dateColorClass = "text-sky-600 font-black";
+        if (isSundayOrHoliday) dateColorClass = "text-rose-600 font-black";
+        else if (isSaturday) dateColorClass = "text-sky-600 font-black";
         
         const dateHeader = document.createElement('div');
         dateHeader.className = `cell-date-num ${dateColorClass}`;
-        dateHeader.textContent = day;
+        
+        // 祝日の場合は日付の横に小さな文字で祝日名を表示する
+        if (isHoliday) {
+          dateHeader.innerHTML = `${day} <span class="text-[9px] font-normal text-rose-500 ml-0.5 whitespace-nowrap block sm:inline">${holidayName}</span>`;
+        } else {
+          dateHeader.textContent = day;
+        }
         cell.appendChild(dateHeader);
 
         const contentContainer = document.createElement('div');
@@ -1483,16 +1504,22 @@
         const currentDayDate = new Date(currentYear, currentMonth - 1, day);
         const dayOfWeek = currentDayDate.getDay();
 
+        // 👑 祝日判定
+        const holidayName = holidaysData[dateStr];
+        const isHoliday = !!holidayName;
+        const isSundayOrHoliday = dayOfWeek === 0 || isHoliday;
+        const isSaturday = dayOfWeek === 6 && !isHoliday;
+
         const tr = document.createElement('tr');
+        let trBgClass = '';
+        if (isSundayOrHoliday) trBgClass = 'bg-rose-100';
+        else if (isSaturday) trBgClass = 'bg-sky-100';
+
         if (isAdminMode) {
-          tr.className = `border-b border-slate-100 cursor-pointer hover:bg-slate-50 transition-all ${
-            dayOfWeek === 0 ? 'bg-rose-50/10' : dayOfWeek === 6 ? 'bg-sky-50/10' : ''
-          }`;
+          tr.className = `border-b border-slate-100 cursor-pointer hover:bg-slate-50 transition-all ${trBgClass}`;
           tr.onclick = () => openEditModal(dateStr, day, dayOfWeek);
         } else {
-          tr.className = `border-b border-slate-100 ${
-            dayOfWeek === 0 ? 'bg-rose-50/10' : dayOfWeek === 6 ? 'bg-sky-50/10' : ''
-          }`;
+          tr.className = `border-b border-slate-100 ${trBgClass}`;
         }
 
         const tdDay = document.createElement('td');
@@ -1502,10 +1529,12 @@
 
         const tdWeek = document.createElement('td');
         let weekColor = "text-slate-500 font-medium";
-        if (dayOfWeek === 0) weekColor = "text-rose-600 font-bold";
-        if (dayOfWeek === 6) weekColor = "text-sky-600 font-bold";
+        if (isSundayOrHoliday) weekColor = "text-rose-600 font-bold";
+        else if (isSaturday) weekColor = "text-sky-600 font-bold";
         tdWeek.className = `py-2 px-1 text-center border-r border-slate-100 ${weekColor}`;
-        tdWeek.textContent = jpnWeekdays[dayOfWeek];
+        
+        // 祝日の場合は曜日表記を「祝」にする
+        tdWeek.innerHTML = isHoliday ? `<span class="text-[10px]">${jpnWeekdays[dayOfWeek]}</span><br/>祝` : jpnWeekdays[dayOfWeek];
         tr.appendChild(tdWeek);
 
         const tdDuty = document.createElement('td');
